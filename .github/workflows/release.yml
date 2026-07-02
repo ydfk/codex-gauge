@@ -1,0 +1,99 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  windows-x64:
+    name: Windows x64
+    runs-on: windows-latest
+    env:
+      CARGO_TERM_COLOR: always
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: meta
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.tag }}"
+          }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$') {
+            throw "Release tag must be SemVer, for example v0.1.0"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$($tag.TrimStart('v'))" >> $env:GITHUB_OUTPUT
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare release config
+        shell: pwsh
+        run: |
+          if (-not "${{ vars.TAURI_UPDATER_PUBKEY }}") {
+            throw "Repository variable TAURI_UPDATER_PUBKEY is required"
+          }
+          if (-not "$env:TAURI_SIGNING_PRIVATE_KEY") {
+            throw "Secret TAURI_SIGNING_PRIVATE_KEY is required"
+          }
+
+          pnpm version:sync "${{ steps.meta.outputs.tag }}"
+
+          $configPath = "src-tauri/tauri.conf.json"
+          $config = Get-Content $configPath -Raw | ConvertFrom-Json
+          $config.bundle.createUpdaterArtifacts = $true
+          $config.plugins.updater.pubkey = "${{ vars.TAURI_UPDATER_PUBKEY }}"
+          $config.plugins.updater.endpoints = @(
+            "https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
+          )
+          $config | ConvertTo-Json -Depth 20 | Set-Content $configPath -Encoding utf8
+
+      - name: Check
+        run: pnpm check
+
+      - name: Build Windows x64 bundles
+        run: pnpm tauri build --target x86_64-pc-windows-msvc
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Codex Gauge ${{ steps.meta.outputs.tag }}
+          draft: false
+          prerelease: ${{ contains(steps.meta.outputs.tag, '-') }}
+          generate_release_notes: true
+          files: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/latest.json
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.sig
