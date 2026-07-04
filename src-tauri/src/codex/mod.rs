@@ -18,7 +18,7 @@ use serde_json::Value;
 use crate::storage::{current_week_start, AppConfig, StateDocument};
 
 use app_server::CodexAppServer;
-use auth_json::{read_auth_json_snapshot, AuthJsonError};
+use auth_json::{read_auth_json_credits, read_auth_json_snapshot, AuthJsonError};
 use parser::{parse_account, parse_rate_limits};
 use reset::apply_reset_inference;
 use session_usage::read_session_token_usage;
@@ -78,7 +78,7 @@ fn build_app_server_snapshot(account: Option<Value>, rate_limits: Value) -> Code
     let parsed = parse_rate_limits(&rate_limits);
     snapshot.primary_window = parsed.five_hour;
     snapshot.secondary_window = parsed.weekly;
-    snapshot.credits = parsed.credits;
+    snapshot.credits = read_auth_json_credits().ok().flatten();
     snapshot.plan_type = parsed.plan_type.or(snapshot.plan_type);
     snapshot.rate_limit_reached_type = parsed.rate_limit_reached_type;
     if snapshot.primary_window.is_none() && snapshot.secondary_window.is_none() {

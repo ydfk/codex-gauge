@@ -1,48 +1,40 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { formatPercent, statusText, usageLevel } from "../lib/format";
+  import { formatPercent, statusText } from "../lib/format";
   import type { CodexUsageSnapshot } from "../lib/types";
 
   export let snapshot: CodexUsageSnapshot | null = null;
-  export let busy = false;
   export let onmenu: (event: MouseEvent) => void;
 
-  $: level = usageLevel(snapshot);
   $: resetCount = snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知";
+  $: fiveHourTone = valueTone(snapshot?.primaryWindow?.remainingPercent);
+  $: weeklyTone = valueTone(snapshot?.secondaryWindow?.remainingPercent);
 
-  let dragStart: { x: number; y: number; dragging: boolean } | null = null;
+  function valueTone(value: number | null | undefined) {
+    if (value == null) return "tone-muted";
+    if (value <= 5) return "tone-empty";
+    if (value <= 15) return "tone-critical";
+    if (value <= 30) return "tone-low";
+    if (value <= 50) return "tone-mid";
+    if (value <= 70) return "tone-good";
+    return "tone-full";
+  }
 
   function handlePointerDown(event: PointerEvent) {
     if (event.button !== 0) return;
-    dragStart = { x: event.clientX, y: event.clientY, dragging: false };
-  }
-
-  function handlePointerMove(event: PointerEvent) {
-    if (!dragStart || dragStart.dragging) return;
-    const moved = Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y);
-    if (moved < 5) return;
-
-    dragStart.dragging = true;
     void getCurrentWindow().startDragging();
-  }
-
-  function handlePointerUp() {
-    dragStart = null;
   }
 </script>
 
 <section
-  class={`top-status-widget level-${level}`}
+  class="top-status-widget"
   role="presentation"
   title={statusText(snapshot)}
   oncontextmenu={onmenu}
   onpointerdown={handlePointerDown}
-  onpointermove={handlePointerMove}
-  onpointerup={handlePointerUp}
-  onpointercancel={handlePointerUp}
+  data-tauri-drag-region
 >
-  <span class={`status-dot ${busy ? "pulse" : ""}`}></span>
-  <strong>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
-  <span>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>
-  <em>重置 {resetCount}</em>
+  <strong class={fiveHourTone} data-tauri-drag-region>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
+  <span class={weeklyTone} data-tauri-drag-region>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>
+  <em data-tauri-drag-region>重置 {resetCount}</em>
 </section>

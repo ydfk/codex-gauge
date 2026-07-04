@@ -60,6 +60,12 @@ pub fn read_auth_json_snapshot() -> Result<CodexUsageSnapshot, AuthJsonError> {
     fetch_snapshot(&auth)
 }
 
+pub fn read_auth_json_credits() -> Result<Option<UsageCredits>, AuthJsonError> {
+    let path = resolve_auth_path();
+    let auth = read_auth_info(&path)?;
+    fetch_credits(&auth)
+}
+
 fn resolve_auth_path() -> PathBuf {
     let codex_home = env::var_os("CODEX_HOME").map(PathBuf::from);
     let home = dirs::home_dir();
@@ -141,6 +147,15 @@ fn fetch_snapshot(auth: &AuthInfo) -> Result<CodexUsageSnapshot, AuthJsonError> 
     }
 
     Ok(snapshot)
+}
+
+fn fetch_credits(auth: &AuthInfo) -> Result<Option<UsageCredits>, AuthJsonError> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(8))
+        .build()
+        .map_err(|_| AuthJsonError::RequestFailed)?;
+    let headers = build_headers(auth)?;
+    request_json(&client, CREDITS_URL, &headers).map(|value| parse_reset_credits(&value))
 }
 
 fn build_headers(auth: &AuthInfo) -> Result<HeaderMap, AuthJsonError> {

@@ -13,6 +13,7 @@
     openCodexLogin,
     refreshSnapshot,
     saveConfig,
+    setTopContextMenu,
     setWindowMode,
   } from "../lib/api";
   import type { AppConfig, CodexUsageSnapshot } from "../lib/types";
@@ -21,7 +22,6 @@
   let config: AppConfig | null = null;
   let expanded = false;
   let settingsOpen = false;
-  let busy = false;
   let message = "";
   let refreshTimer: number | null = null;
   let oledTimer: number | null = null;
@@ -55,7 +55,7 @@
     try {
       config = await getConfig();
       if (!isTopWindow) await setWindowMode(false);
-      await refresh(false);
+      await refresh();
       scheduleRefresh();
       scheduleOledShift();
     } catch {
@@ -63,22 +63,19 @@
     }
   }
 
-  async function refresh(showBusy = true) {
-    if (showBusy) busy = true;
+  async function refresh() {
     try {
       snapshot = await (snapshot ? refreshSnapshot() : getSnapshot());
       message = "";
     } catch {
       message = "刷新失败";
-    } finally {
-      busy = false;
     }
   }
 
   function scheduleRefresh() {
     if (refreshTimer) window.clearInterval(refreshTimer);
     const seconds = config?.general.refreshIntervalSeconds ?? 60;
-    refreshTimer = window.setInterval(() => void refresh(false), Math.max(30, seconds) * 1000);
+    refreshTimer = window.setInterval(() => void refresh(), Math.max(30, seconds) * 1000);
   }
 
   async function updateConfig(nextConfig: AppConfig) {
@@ -168,28 +165,41 @@
 
   function openContextMenu(event: MouseEvent) {
     event.preventDefault();
-    contextMenu = { x: event.clientX, y: event.clientY };
+    const width = 90;
+    const height = 62;
+    const x = Math.max(4, Math.min(event.clientX, window.innerWidth - width - 4));
+    const y = isTopWindow ? 29 : Math.max(4, Math.min(event.clientY, window.innerHeight - height - 4));
+    contextMenu = { x, y };
+    if (isTopWindow) void setTopContextMenu(true);
+  }
+
+  async function refreshFromContext() {
+    closeContextMenu();
+    await refresh();
   }
 
   async function closeCurrentWindow() {
     contextMenu = null;
+    if (isTopWindow) await setTopContextMenu(false);
     await currentWindow.hide();
   }
 
   function closeContextMenu() {
     contextMenu = null;
+    if (isTopWindow) void setTopContextMenu(false);
   }
 </script>
 
 <main
   class:expanded
   class:top-window={isTopWindow}
+  class:context-open={!!contextMenu}
   class:settings-open={settingsOpen}
   style={`--panel-opacity: ${config?.general.opacity ?? 0.92}`}
   onpointerdown={closeContextMenu}
 >
   {#if isTopWindow}
-    <TopStatusWidget {snapshot} {busy} onmenu={openContextMenu} />
+    <TopStatusWidget {snapshot} onmenu={openContextMenu} />
   {:else if expanded}
     {#if settingsOpen}
       <SettingsPanel
@@ -209,7 +219,6 @@
   {:else}
     <FloatingWidget
       {snapshot}
-      {busy}
       {message}
       onopen={() => void toggleExpanded()}
       onmenu={openContextMenu}
@@ -224,7 +233,7 @@
       tabindex="-1"
       onpointerdown={(event) => event.stopPropagation()}
     >
-      <button type="button" role="menuitem" onclick={() => void refresh()}>刷新</button>
+      <button type="button" role="menuitem" onclick={() => void refreshFromContext()}>刷新</button>
       <button type="button" role="menuitem" onclick={() => void closeCurrentWindow()}>关闭</button>
     </div>
   {/if}

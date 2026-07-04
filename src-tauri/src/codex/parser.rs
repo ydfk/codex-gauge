@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{UsageCredits, UsageWindow};
+use super::UsageWindow;
 
 #[derive(Debug, Clone)]
 pub struct ParsedAccount {
@@ -11,7 +11,6 @@ pub struct ParsedAccount {
 pub struct ParsedRateLimits {
     pub five_hour: Option<UsageWindow>,
     pub weekly: Option<UsageWindow>,
-    pub credits: Option<UsageCredits>,
     pub plan_type: Option<String>,
     pub rate_limit_reached_type: Option<String>,
 }
@@ -40,10 +39,6 @@ pub fn parse_rate_limits(value: &Value) -> ParsedRateLimits {
     ParsedRateLimits {
         five_hour,
         weekly,
-        credits: root
-            .get("rateLimitResetCredits")
-            .map(parse_reset_credits)
-            .or_else(|| root.get("credits").map(parse_reset_credits)),
         plan_type: first_string(root, &["planType", "plan_type"]),
         rate_limit_reached_type: first_string(root, &["rateLimitReachedType"]),
     }
@@ -137,22 +132,6 @@ fn label_for_duration(duration: Option<i64>) -> &'static str {
     }
 }
 
-fn parse_reset_credits(value: &Value) -> UsageCredits {
-    UsageCredits {
-        remaining: value.get("remaining").and_then(value_to_i64),
-        available_count: value.get("availableCount").and_then(value_to_i64),
-        reset_credits: value
-            .get("availableCount")
-            .or_else(|| value.get("resetCredits"))
-            .and_then(value_to_i64),
-        reset_at: value
-            .get("resetAt")
-            .or_else(|| value.get("resetsAt"))
-            .and_then(value_to_i64),
-        items: Vec::new(),
-    }
-}
-
 fn first_string(root: &Value, keys: &[&str]) -> Option<String> {
     keys.iter()
         .find_map(|key| value_at(root, key).and_then(Value::as_str))
@@ -195,14 +174,12 @@ mod tests {
                 },
                 "rateLimits": [
                     { "usedPercent": 90, "windowDurationMins": 300, "resetsAt": 1900000000 }
-                ],
-                "rateLimitResetCredits": { "availableCount": 2 }
+                ]
             }
         }));
 
         assert_eq!(parsed.five_hour.unwrap().used_percent, Some(42.0));
         assert_eq!(parsed.weekly.unwrap().used_percent, Some(17.0));
-        assert_eq!(parsed.credits.unwrap().reset_credits, Some(2));
     }
 
     #[test]

@@ -88,11 +88,14 @@ impl AppStorage {
     }
 
     pub fn load_config(&self) -> AppConfig {
-        read_json(&self.config_path()).unwrap_or_else(|| {
+        let mut config: AppConfig = read_json(&self.config_path()).unwrap_or_else(|| {
             let config = AppConfig::default();
             self.save_config(&config);
             config
-        })
+        });
+        config.migrate();
+        self.save_config(&config);
+        config
     }
 
     pub fn save_config(&self, config: &AppConfig) {

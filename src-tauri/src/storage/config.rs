@@ -55,11 +55,11 @@ pub struct WindowConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             general: GeneralConfig {
                 start_on_boot: false,
                 show_on_startup: true,
-                always_on_top: true,
+                always_on_top: false,
                 lock_position: false,
                 oled_shift_enabled: false,
                 top_status_enabled: true,
@@ -87,10 +87,20 @@ impl Default for AppConfig {
     }
 }
 
+impl AppConfig {
+    pub fn migrate(&mut self) {
+        if self.version < 2 {
+            self.general.always_on_top = false;
+            self.codex.preferred_provider = default_provider();
+            self.version = 2;
+        }
+    }
+}
+
 fn default_true() -> bool {
     true
 }
 
 fn default_provider() -> String {
-    "api".to_string()
+    "app-server".to_string()
 }

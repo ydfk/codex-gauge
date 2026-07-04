@@ -88,8 +88,8 @@
       <label>
         <span>优先查询方式</span>
         <select bind:value={draft.codex.preferredProvider} onchange={save}>
-          <option value="api">API</option>
           <option value="app-server">app-server</option>
+          <option value="api">API</option>
         </select>
       </label>
     </div>

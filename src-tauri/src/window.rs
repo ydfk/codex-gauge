@@ -6,11 +6,12 @@ pub const COLLAPSED_WIDTH: u32 = 430;
 pub const COLLAPSED_HEIGHT: u32 = 104;
 pub const EXPANDED_WIDTH: u32 = 460;
 pub const EXPANDED_HEIGHT: u32 = 640;
-pub const TOP_WIDTH: u32 = 272;
-pub const TOP_HEIGHT: u32 = 34;
+pub const TOP_WIDTH: u32 = 168;
+pub const TOP_HEIGHT: u32 = 26;
+pub const TOP_MENU_HEIGHT: u32 = 92;
 
 const DEFAULT_TOP_MARGIN: i32 = 28;
-const TOP_STATUS_MARGIN: i32 = 8;
+const TOP_STATUS_MARGIN: i32 = 0;
 
 pub fn main_window_size(expanded: bool) -> LogicalSize<u32> {
     if expanded {
@@ -18,6 +19,17 @@ pub fn main_window_size(expanded: bool) -> LogicalSize<u32> {
     } else {
         LogicalSize::new(COLLAPSED_WIDTH, COLLAPSED_HEIGHT)
     }
+}
+
+pub fn top_window_size(menu_open: bool) -> LogicalSize<u32> {
+    LogicalSize::new(
+        TOP_WIDTH,
+        if menu_open {
+            TOP_MENU_HEIGHT
+        } else {
+            TOP_HEIGHT
+        },
+    )
 }
 
 pub fn setup_main_window(app: &AppHandle) -> tauri::Result<()> {
@@ -62,7 +74,7 @@ pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
     let state = app.state::<AppState>();
     let config = state.config.lock().expect("config mutex").clone();
 
-    window.set_size(LogicalSize::new(TOP_WIDTH, TOP_HEIGHT))?;
+    window.set_size(top_window_size(false))?;
     let _ = window.set_shadow(false);
     window.set_always_on_top(true)?;
     place_top_window(&window);

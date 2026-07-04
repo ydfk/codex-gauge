@@ -73,20 +73,6 @@ export function sourceText(snapshot: CodexUsageSnapshot | null) {
   return "Session Log";
 }
 
-export function usageLevel(snapshot: CodexUsageSnapshot | null) {
-  if (!snapshot || snapshot.status !== "ok") return "muted";
-  const values = [snapshot.primaryWindow?.usedPercent, snapshot.secondaryWindow?.usedPercent].filter(
-    (value): value is number => typeof value === "number",
-  );
-  if (!values.length) return "muted";
-
-  const max = Math.max(...values);
-  if (max >= 95) return "danger";
-  if (max >= 85) return "warning";
-  if (max >= 70) return "notice";
-  return "ok";
-}
-
 export function windowTitle(window: UsageWindow | null | undefined) {
   if (!window) return "未知窗口";
   if (window.name === "5h") return "5小时";

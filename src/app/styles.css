@@ -62,11 +62,16 @@ main.expanded {
 }
 
 main.top-window {
-  width: 272px;
-  min-height: 34px;
+  width: 168px;
+  min-height: 26px;
+  overflow: hidden;
   text-shadow:
     0 1px 2px rgba(14, 20, 28, 0.48),
     0 0 10px rgba(14, 20, 28, 0.28);
+}
+
+main.top-window.context-open {
+  min-height: 92px;
 }
 
 .floating-widget,
@@ -144,15 +149,15 @@ main.top-window {
 .top-status-widget {
   position: relative;
   display: grid;
-  grid-template-columns: 11px auto auto auto;
+  grid-template-columns: auto auto auto;
   align-items: center;
-  gap: 9px;
-  width: 272px;
-  height: 34px;
-  padding: 0 12px;
+  gap: 3px;
+  width: 168px;
+  height: 26px;
+  padding: 0 7px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 999px;
+  border-radius: 0 0 13px 13px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.38), rgba(210, 225, 238, 0.18) 46%, rgba(68, 82, 100, 0.26)),
     radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.46), transparent 36%),
@@ -182,12 +187,47 @@ main.top-window {
 }
 
 .top-status-widget strong {
-  color: #fff;
+  color: var(--bar-color, #17d9ad);
 }
 
-.top-status-widget span:not(.status-dot),
+.top-status-widget span,
 .top-status-widget em {
   color: rgba(255, 255, 255, 0.86);
+}
+
+.top-status-widget .tone-muted {
+  --bar-color: rgba(220, 230, 240, 0.72);
+  color: var(--bar-color);
+}
+
+.top-status-widget .tone-full {
+  --bar-color: #17d9ad;
+  color: var(--bar-color);
+}
+
+.top-status-widget .tone-good {
+  --bar-color: #9ee84a;
+  color: var(--bar-color);
+}
+
+.top-status-widget .tone-mid {
+  --bar-color: #ffd447;
+  color: var(--bar-color);
+}
+
+.top-status-widget .tone-low {
+  --bar-color: #ff982f;
+  color: var(--bar-color);
+}
+
+.top-status-widget .tone-critical {
+  --bar-color: #ff5a45;
+  color: var(--bar-color);
+}
+
+.top-status-widget .tone-empty {
+  --bar-color: #ff2d55;
+  color: var(--bar-color);
 }
 
 .glass-refraction {
@@ -225,22 +265,9 @@ main.top-window {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
+  height: 22px;
   min-width: 0;
   padding-right: 0;
-}
-
-.brand-cluster {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.brand-line {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  line-height: 1;
 }
 
 .brand {
@@ -248,7 +275,7 @@ main.top-window {
   color: #fff;
   font-size: 16px;
   font-weight: 760;
-  line-height: 1;
+  line-height: 20px;
   letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -263,32 +290,12 @@ main.top-window {
   color: rgba(255, 255, 255, 0.94);
   font-size: 10px;
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-shadow:
     0 1px 2px rgba(10, 16, 24, 0.48),
     0 0 12px rgba(10, 16, 24, 0.24);
-}
-
-.status-dot {
-  flex: 0 0 auto;
-  justify-self: start;
-  margin-top: 0;
-  width: 9px;
-  height: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.68);
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.96), transparent 24%),
-    var(--accent);
-  box-shadow:
-    0 0 0 4px rgba(132, 240, 206, 0.1),
-    0 0 16px rgba(132, 240, 206, 0.76);
-}
-
-.status-dot.pulse {
-  animation: status-pulse 1.2s ease-in-out infinite;
 }
 
 .usage-matrix {
@@ -448,6 +455,7 @@ main.top-window {
   color: #dfffee;
   font-size: 11.5px;
   font-weight: 820;
+  line-height: 16px;
   text-align: center;
   text-shadow: 0 1px 2px rgba(10, 16, 24, 0.34);
   box-shadow:
@@ -530,8 +538,8 @@ main.top-window {
 }
 
 .float-context-menu button {
-  height: 30px;
-  padding: 0 14px;
+  height: 28px;
+  padding: 0 12px;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
   background: transparent;
@@ -548,30 +556,6 @@ main.top-window {
 
 .float-context-menu button:hover {
   background: rgba(255, 255, 255, 0.12);
-}
-
-.level-muted {
-  --accent: #b3bec8;
-  --accent-b: #e2e8f0;
-}
-
-.level-notice {
-  --accent: #ffe08a;
-  --accent-b: #8ab7ff;
-}
-
-.level-warning {
-  --accent: #ffc06e;
-  --accent-b: #ffe3a8;
-}
-
-.level-danger {
-  --accent: #ff7f86;
-  --accent-b: #ffc0a6;
-}
-
-.level-muted .status-dot {
-  box-shadow: 0 0 0 4px rgba(179, 190, 200, 0.11);
 }
 
 .detail-panel,
@@ -974,18 +958,6 @@ h1 {
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-@keyframes status-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.9;
-  }
-  50% {
-    transform: scale(0.72);
-    opacity: 0.56;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

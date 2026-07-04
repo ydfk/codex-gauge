@@ -207,6 +207,18 @@ fn set_window_mode(expanded: bool, app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn set_top_context_menu(open: bool, app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("top")
+        .ok_or_else(|| "顶部浮条不存在".to_string())?;
+
+    window
+        .set_size(crate::window::top_window_size(open))
+        .map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn quit_app(app: AppHandle) {
     app.exit(0);
 }
@@ -265,6 +277,7 @@ pub fn run() {
             show_main_window,
             hide_main_window,
             set_window_mode,
+            set_top_context_menu,
             quit_app
         ])
         .setup(|app| {

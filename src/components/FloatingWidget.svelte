@@ -1,15 +1,13 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { formatCompactDateTime, formatPercent, statusText, usageLevel } from "../lib/format";
+  import { formatCompactDateTime, formatPercent, statusText } from "../lib/format";
   import type { CodexUsageSnapshot } from "../lib/types";
 
   export let snapshot: CodexUsageSnapshot | null = null;
-  export let busy = false;
   export let message = "";
   export let onopen: () => void;
   export let onmenu: (event: MouseEvent) => void;
 
-  $: level = usageLevel(snapshot);
   $: fiveHourWidth = barWidth(snapshot?.primaryWindow?.remainingPercent);
   $: weeklyWidth = barWidth(snapshot?.secondaryWindow?.remainingPercent);
   $: fiveHourTone = meterTone(snapshot?.primaryWindow?.remainingPercent);
@@ -59,7 +57,7 @@
   }
 </script>
 
-<section class={`floating-widget level-${level}`}>
+<section class="floating-widget">
   <div class="glass-refraction"></div>
   <div
     class="widget-body"
@@ -72,12 +70,7 @@
     ondblclick={handleDoubleClick}
   >
     <header class="widget-top">
-      <span class="brand-cluster">
-        <span class="brand-line">
-          <span class={`status-dot ${busy ? "pulse" : ""}`} aria-label={statusText(snapshot)}></span>
-          <span class="brand">Codex</span>
-        </span>
-      </span>
+      <span class="brand">Codex</span>
       <span class="status-copy">{usedSummary}</span>
       <span class="credit-chip">重置次数: {resetCount}</span>
     </header>

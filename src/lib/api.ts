@@ -45,6 +45,10 @@ export function setWindowMode(expanded: boolean) {
   return invoke<void>("set_window_mode", { expanded });
 }
 
+export function setTopContextMenu(open: boolean) {
+  return invoke<void>("set_top_context_menu", { open });
+}
+
 export function quitApp() {
   return invoke<void>("quit_app");
 }
