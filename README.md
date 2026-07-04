@@ -214,7 +214,7 @@ https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json
 
 也可以在设置页修改为自己的 GitHub Release `latest.json` 地址。
 
-签名配置完整时，CI 会校验并上传 `latest.json`、updater `.zip` 包和 `.sig` 签名文件。缺少这些文件会让发布流程失败，避免 Release 看起来成功但应用内更新不可用。
+签名配置完整时，CI 会根据 updater `.zip` 和 `.sig` 签名文件生成 `latest.json`，然后一起上传。缺少这些文件会让发布流程失败，避免 Release 看起来成功但应用内更新不可用。
 
 生成 updater 密钥：
 

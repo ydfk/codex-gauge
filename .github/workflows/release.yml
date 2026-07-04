@@ -115,6 +115,41 @@ jobs:
             $_.FullName.Replace((Resolve-Path ".").Path + "\", "")
           }
 
+      - name: Generate updater manifest
+        if: env.CODEX_GAUGE_UPDATER_ARTIFACTS == 'true'
+        shell: pwsh
+        run: |
+          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
+          $zip = Get-ChildItem $bundlePath -Recurse -File -Filter "*.zip" | Select-Object -First 1
+          if (-not $zip) {
+            throw "Updater artifacts are enabled, but updater zip package was not generated."
+          }
+
+          $signaturePath = "$($zip.FullName).sig"
+          if (Test-Path $signaturePath) {
+            $sig = Get-Item $signaturePath
+          } else {
+            $sig = Get-ChildItem $bundlePath -Recurse -File -Filter "*.sig" | Select-Object -First 1
+          }
+          if (-not $sig) {
+            throw "Updater artifacts are enabled, but signature files were not generated."
+          }
+
+          $assetName = [Uri]::EscapeDataString($zip.Name)
+          $manifest = [ordered]@{
+            version = "${{ steps.meta.outputs.version }}"
+            notes = "Codex Gauge ${{ steps.meta.outputs.tag }}"
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = [ordered]@{
+              "windows-x86_64" = [ordered]@{
+                signature = (Get-Content $sig.FullName -Raw).Trim()
+                url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/$assetName"
+              }
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 10 | Set-Content "$bundlePath/latest.json" -Encoding utf8
+          Write-Host "Generated $bundlePath/latest.json for $($zip.Name)."
+
       - name: Verify updater artifacts
         if: env.CODEX_GAUGE_UPDATER_ARTIFACTS == 'true'
         shell: pwsh
