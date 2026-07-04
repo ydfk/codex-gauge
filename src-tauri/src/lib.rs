@@ -22,6 +22,7 @@ pub struct AppState {
     state_doc: Mutex<StateDocument>,
     snapshot: Mutex<Option<CodexUsageSnapshot>>,
     refresh_cache: Mutex<RefreshCache>,
+    update_status: Mutex<Option<updater::UpdateCheckResult>>,
 }
 
 #[derive(Debug, Default)]
@@ -41,6 +42,7 @@ impl AppState {
             state_doc: Mutex::new(state_doc),
             snapshot: Mutex::new(None),
             refresh_cache: Mutex::new(RefreshCache::default()),
+            update_status: Mutex::new(None),
         }
     }
 
@@ -111,6 +113,10 @@ impl AppState {
             _ => 300,
         };
         cache.retry_after_at = Some(chrono::Local::now().timestamp() + delay);
+    }
+
+    fn set_update_status(&self, status: updater::UpdateCheckResult) {
+        *self.update_status.lock().expect("update status mutex") = Some(status);
     }
 }
 

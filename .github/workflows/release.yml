@@ -43,7 +43,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.8.0
+          version: 11.9.0
 
       - uses: actions/setup-node@v4
         with:
@@ -85,9 +85,11 @@ jobs:
           if ($hasUpdaterPubkey -and $hasSigningKey) {
             $config.bundle.createUpdaterArtifacts = $true
             $config.plugins.updater.pubkey = $env:TAURI_UPDATER_PUBKEY
+            "CODEX_GAUGE_UPDATER_ARTIFACTS=true" >> $env:GITHUB_ENV
             Write-Host "Updater artifacts enabled."
           } else {
             $config.bundle.createUpdaterArtifacts = $false
+            "CODEX_GAUGE_UPDATER_ARTIFACTS=false" >> $env:GITHUB_ENV
             if (-not $hasUpdaterPubkey) {
               Write-Warning "TAURI_UPDATER_PUBKEY is empty; configure it as a repository variable or secret."
             }
@@ -105,6 +107,32 @@ jobs:
       - name: Build Windows x64 bundles
         run: pnpm tauri build --target x86_64-pc-windows-msvc
 
+      - name: List bundle artifacts
+        shell: pwsh
+        run: |
+          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
+          Get-ChildItem $bundlePath -Recurse -File | ForEach-Object {
+            $_.FullName.Replace((Resolve-Path ".").Path + "\", "")
+          }
+
+      - name: Verify updater artifacts
+        if: env.CODEX_GAUGE_UPDATER_ARTIFACTS == 'true'
+        shell: pwsh
+        run: |
+          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
+          $latest = Get-ChildItem $bundlePath -Recurse -File -Filter "latest.json"
+          $zip = Get-ChildItem $bundlePath -Recurse -File -Filter "*.zip"
+          $sig = Get-ChildItem $bundlePath -Recurse -File -Filter "*.sig"
+          if (-not $latest) {
+            throw "Updater artifacts are enabled, but latest.json was not generated."
+          }
+          if (-not $zip) {
+            throw "Updater artifacts are enabled, but updater zip package was not generated."
+          }
+          if (-not $sig) {
+            throw "Updater artifacts are enabled, but signature files were not generated."
+          }
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -116,5 +144,9 @@ jobs:
           files: |
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/latest.json
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/*.zip
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/*.sig
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/latest.json
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.zip
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.sig

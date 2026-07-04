@@ -41,6 +41,8 @@ pub struct CodexConfig {
 pub struct UpdateConfig {
     pub auto_check: bool,
     pub channel: String,
+    #[serde(default = "default_update_endpoint")]
+    pub endpoint: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +78,7 @@ impl Default for AppConfig {
             update: UpdateConfig {
                 auto_check: true,
                 channel: "stable".to_string(),
+                endpoint: default_update_endpoint(),
             },
             window: WindowConfig {
                 x: None,
@@ -94,6 +97,12 @@ impl AppConfig {
             self.codex.preferred_provider = default_provider();
             self.version = 2;
         }
+        if self.version < 3 {
+            if self.update.endpoint.trim().is_empty() {
+                self.update.endpoint = default_update_endpoint();
+            }
+            self.version = 3;
+        }
     }
 }
 
@@ -103,4 +112,8 @@ fn default_true() -> bool {
 
 fn default_provider() -> String {
     "app-server".to_string()
+}
+
+pub fn default_update_endpoint() -> String {
+    "https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json".to_string()
 }

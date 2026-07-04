@@ -206,6 +206,16 @@ v0.1.0
 
 `TAURI_UPDATER_PUBKEY` 推荐放在 Repository variables。若放在 Repository secrets，当前 workflow 也会读取同名 secret 作为兜底。
 
+应用内默认更新地址为：
+
+```text
+https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json
+```
+
+也可以在设置页修改为自己的 GitHub Release `latest.json` 地址。
+
+签名配置完整时，CI 会校验并上传 `latest.json`、updater `.zip` 包和 `.sig` 签名文件。缺少这些文件会让发布流程失败，避免 Release 看起来成功但应用内更新不可用。
+
 生成 updater 密钥：
 
 ```bash

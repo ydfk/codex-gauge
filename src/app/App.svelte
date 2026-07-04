@@ -10,19 +10,22 @@
   import {
     getConfig,
     getSnapshot,
+    checkUpdate,
+    installUpdate,
     openCodexLogin,
     refreshSnapshot,
     saveConfig,
     setTopContextMenu,
     setWindowMode,
   } from "../lib/api";
-  import type { AppConfig, CodexUsageSnapshot } from "../lib/types";
+  import type { AppConfig, CodexUsageSnapshot, UpdateCheckResult } from "../lib/types";
 
   let snapshot: CodexUsageSnapshot | null = null;
   let config: AppConfig | null = null;
   let expanded = false;
   let settingsOpen = false;
   let message = "";
+  let updateStatus: UpdateCheckResult | null = null;
   let refreshTimer: number | null = null;
   let oledTimer: number | null = null;
   let oledStep = 0;
@@ -42,6 +45,8 @@
       listen("codex-gauge-toggle-start-on-boot", () => void toggleStartOnBoot()),
       listen("codex-gauge-toggle-auto-update", () => void toggleAutoUpdate()),
       listen("codex-gauge-open-login", () => void openCodexLogin()),
+      listen("codex-gauge-check-update", () => void checkForUpdate(false)),
+      listen("codex-gauge-install-update", () => void installAvailableUpdate()),
     ];
 
     return () => {
@@ -56,6 +61,7 @@
       config = await getConfig();
       if (!isTopWindow) await setWindowMode(false);
       await refresh();
+      if (!isTopWindow && config.update.autoCheck) void checkForUpdate(true);
       scheduleRefresh();
       scheduleOledShift();
     } catch {
@@ -69,6 +75,28 @@
       message = "";
     } catch {
       message = "刷新失败";
+    }
+  }
+
+  async function checkForUpdate(silent: boolean) {
+    if (isTopWindow) return;
+    try {
+      if (!silent) message = "检查更新中";
+      updateStatus = await checkUpdate();
+      if (!silent || updateStatus.available) message = updateStatus.message;
+    } catch {
+      if (!silent) message = "检查更新失败";
+    }
+  }
+
+  async function installAvailableUpdate() {
+    if (isTopWindow) return;
+    try {
+      message = "安装更新中";
+      updateStatus = await installUpdate();
+      message = updateStatus.message;
+    } catch {
+      message = "安装更新失败";
     }
   }
 
@@ -204,7 +232,10 @@
     {#if settingsOpen}
       <SettingsPanel
         {config}
+        {updateStatus}
         onsave={(nextConfig) => updateConfig(nextConfig)}
+        oncheckupdate={() => void checkForUpdate(false)}
+        oninstallupdate={() => void installAvailableUpdate()}
         onback={() => (settingsOpen = false)}
       />
     {:else}

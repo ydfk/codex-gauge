@@ -40,6 +40,12 @@ git push origin v0.1.0
 
 `TAURI_UPDATER_PUBKEY` 推荐放在 Repository variables。若放在 Repository secrets，当前 CI 也会读取同名 secret 作为兜底。
 
+应用内设置页可以修改更新地址。默认地址是：
+
+```text
+https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json
+```
+
 正式发布前需要：
 
 1. 生成 Tauri updater 签名密钥。
@@ -52,3 +58,11 @@ git push origin v0.1.0
 不要把私钥提交到仓库。
 
 本地默认 `createUpdaterArtifacts = false`，用于避免没有签名私钥时普通构建失败。CI 也会在缺少 `TAURI_UPDATER_PUBKEY` 或 `TAURI_SIGNING_PRIVATE_KEY` 时跳过 `latest.json` 和签名文件，只发布 Windows x64 安装包。
+
+当 updater 签名配置完整时，CI 会校验并上传：
+
+- `latest.json`
+- updater `.zip` 包
+- `.sig` 签名文件
+
+如果这些文件没有生成，发布流程会失败，避免 GitHub Release 缺少应用内更新所需文件。

@@ -74,7 +74,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/liyuhang/codex-gauge/releases/latest/download/latest.json"
+        "https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json"
       ],
       "pubkey": "TODO_REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY",
       "windows": {

@@ -930,6 +930,16 @@ h1 {
   color: #fff;
 }
 
+.settings-panel .setting-wide {
+  grid-template-columns: 1fr;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.settings-panel .setting-wide input {
+  width: 100%;
+}
+
 .settings-panel select {
   appearance: none;
 }
@@ -947,17 +957,48 @@ h1 {
 }
 
 .update-box {
-  grid-template-columns: 128px 1fr;
+  grid-template-columns: 1fr auto;
   border-bottom: 0;
 }
 
+.update-box div {
+  min-width: 0;
+}
+
+.update-box strong {
+  display: block;
+  overflow: hidden;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .update-box span {
+  display: block;
   overflow: hidden;
   color: var(--muted);
   font-size: 12px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.settings-actions button {
+  min-width: 48px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 760;
 }
 
 @media (prefers-reduced-motion: reduce) {

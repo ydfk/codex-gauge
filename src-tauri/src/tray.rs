@@ -5,23 +5,12 @@ use tauri::{
 };
 
 use crate::codex::{CodexUsageSnapshot, SnapshotStatus};
+use crate::updater::UpdateCheckResult;
 
 const TRAY_ID: &str = "codex-gauge-tray";
 
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let toggle = MenuItem::with_id(app, "toggle", "打开/隐藏浮窗", true, None::<&str>)?;
-    let always_on_top = MenuItem::with_id(
-        app,
-        "always_on_top",
-        "固定/取消固定在最上层",
-        true,
-        None::<&str>,
-    )?;
-    let refresh = MenuItem::with_id(app, "refresh", "刷新", true, None::<&str>)?;
-    let settings = MenuItem::with_id(app, "settings", "打开设置", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-
-    let menu = Menu::with_items(app, &[&toggle, &always_on_top, &refresh, &settings, &quit])?;
+    let menu = build_menu(app, None)?;
 
     let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
         tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).expect("tray icon")
@@ -39,6 +28,12 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             }
             "refresh" => {
                 let _ = app.emit("codex-gauge-refresh", ());
+            }
+            "update_check" => {
+                let _ = app.emit("codex-gauge-check-update", ());
+            }
+            "update_install" => {
+                let _ = app.emit("codex-gauge-install-update", ());
             }
             "settings" => {
                 open_settings(app);
@@ -59,6 +54,67 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         .build(app)?;
 
     Ok(())
+}
+
+pub fn update_update_menu(app: &AppHandle, update: Option<&UpdateCheckResult>) {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
+    if let Ok(menu) = build_menu(app, update) {
+        let _ = tray.set_menu(Some(menu));
+    }
+}
+
+fn build_menu(
+    app: &AppHandle,
+    update: Option<&UpdateCheckResult>,
+) -> tauri::Result<Menu<tauri::Wry>> {
+    let toggle = MenuItem::with_id(app, "toggle", "打开/隐藏浮窗", true, None::<&str>)?;
+    let always_on_top = MenuItem::with_id(
+        app,
+        "always_on_top",
+        "固定/取消固定在最上层",
+        true,
+        None::<&str>,
+    )?;
+    let refresh = MenuItem::with_id(app, "refresh", "刷新", true, None::<&str>)?;
+    let update_item = match update {
+        Some(result) if result.available => MenuItem::with_id(
+            app,
+            "update_install",
+            update_install_label(result),
+            true,
+            None::<&str>,
+        )?,
+        Some(result) => MenuItem::with_id(
+            app,
+            "update_check",
+            update_check_label(result),
+            true,
+            None::<&str>,
+        )?,
+        None => MenuItem::with_id(
+            app,
+            "update_check",
+            "更新：检查最新版本",
+            true,
+            None::<&str>,
+        )?,
+    };
+    let settings = MenuItem::with_id(app, "settings", "打开设置", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+
+    Menu::with_items(
+        app,
+        &[
+            &toggle,
+            &always_on_top,
+            &refresh,
+            &update_item,
+            &settings,
+            &quit,
+        ],
+    )
 }
 
 pub fn update_tooltip(app: &AppHandle, snapshot: &CodexUsageSnapshot) {
@@ -134,4 +190,22 @@ fn status_text(status: &SnapshotStatus) -> &'static str {
         SnapshotStatus::InvalidAuth => "凭据失效",
         SnapshotStatus::RequestFailed => "查询失败",
     }
+}
+
+fn update_check_label(result: &UpdateCheckResult) -> String {
+    if result.message.contains("最新") {
+        "更新：已是最新版".to_string()
+    } else if result.message.contains("失败") || result.message.contains("无效") {
+        "更新：检查失败".to_string()
+    } else {
+        "更新：重新检查".to_string()
+    }
+}
+
+fn update_install_label(result: &UpdateCheckResult) -> String {
+    result
+        .version
+        .as_ref()
+        .map(|version| format!("安装更新 {}", version))
+        .unwrap_or_else(|| "安装更新".to_string())
 }

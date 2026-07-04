@@ -68,6 +68,7 @@ export type AppConfig = {
   update: {
     autoCheck: boolean;
     channel: string;
+    endpoint: string;
   };
   window: {
     x: number | null;

@@ -1,8 +1,11 @@
 <script lang="ts">
-  import type { AppConfig } from "../lib/types";
+  import type { AppConfig, UpdateCheckResult } from "../lib/types";
 
   export let config: AppConfig | null = null;
+  export let updateStatus: UpdateCheckResult | null = null;
   export let onsave: (config: AppConfig) => void;
+  export let oncheckupdate: () => void;
+  export let oninstallupdate: () => void;
   export let onback: () => void;
 
   $: draft = config ? structuredClone(config) : null;
@@ -92,6 +95,32 @@
           <option value="api">API</option>
         </select>
       </label>
+    </div>
+
+    <div class="settings-section">
+      <span class="section-title">更新</span>
+      <label class="toggle">
+        <span>启动时自动检查</span>
+        <input type="checkbox" bind:checked={draft.update.autoCheck} onchange={save} />
+      </label>
+
+      <label class="setting-wide">
+        <span>更新地址</span>
+        <input type="text" bind:value={draft.update.endpoint} onchange={save} />
+      </label>
+
+      <div class="update-box">
+        <div>
+          <strong>{updateStatus?.available ? "发现新版本" : "更新状态"}</strong>
+          <span>{updateStatus?.message ?? "尚未检查"}</span>
+        </div>
+        <div class="settings-actions">
+          <button type="button" onclick={oncheckupdate}>检查</button>
+          <button type="button" disabled={!updateStatus?.available} onclick={oninstallupdate}>
+            更新
+          </button>
+        </div>
+      </div>
     </div>
   {:else}
     <p class="message">设置加载中</p>
