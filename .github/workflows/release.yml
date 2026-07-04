@@ -120,35 +120,48 @@ jobs:
         shell: pwsh
         run: |
           $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
-          $zip = Get-ChildItem $bundlePath -Recurse -File -Filter "*.zip" | Select-Object -First 1
-          if (-not $zip) {
-            throw "Updater artifacts are enabled, but updater zip package was not generated."
+          $platforms = [ordered]@{}
+
+          function Add-PlatformAsset($target, $asset) {
+            if (-not $asset) {
+              return
+            }
+
+            $signaturePath = "$($asset.FullName).sig"
+            if (-not (Test-Path $signaturePath)) {
+              Write-Warning "Missing signature for $($asset.Name), skipping $target."
+              return
+            }
+
+            $assetName = [Uri]::EscapeDataString($asset.Name)
+            $platforms[$target] = [ordered]@{
+              signature = (Get-Content $signaturePath -Raw).Trim()
+              url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/$assetName"
+            }
           }
 
-          $signaturePath = "$($zip.FullName).sig"
-          if (Test-Path $signaturePath) {
-            $sig = Get-Item $signaturePath
-          } else {
-            $sig = Get-ChildItem $bundlePath -Recurse -File -Filter "*.sig" | Select-Object -First 1
-          }
-          if (-not $sig) {
-            throw "Updater artifacts are enabled, but signature files were not generated."
+          $nsis = Get-ChildItem "$bundlePath/nsis" -File -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $msi = Get-ChildItem "$bundlePath/msi" -File -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
+          Add-PlatformAsset "windows-x86_64-nsis" $nsis
+          Add-PlatformAsset "windows-x86_64-msi" $msi
+          if ($nsis) {
+            Add-PlatformAsset "windows-x86_64" $nsis
+          } elseif ($msi) {
+            Add-PlatformAsset "windows-x86_64" $msi
           }
 
-          $assetName = [Uri]::EscapeDataString($zip.Name)
+          if ($platforms.Count -eq 0) {
+            throw "Updater artifacts are enabled, but no signed Windows installer was generated."
+          }
+
           $manifest = [ordered]@{
             version = "${{ steps.meta.outputs.version }}"
             notes = "Codex Gauge ${{ steps.meta.outputs.tag }}"
             pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-            platforms = [ordered]@{
-              "windows-x86_64" = [ordered]@{
-                signature = (Get-Content $sig.FullName -Raw).Trim()
-                url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/$assetName"
-              }
-            }
+            platforms = $platforms
           }
           $manifest | ConvertTo-Json -Depth 10 | Set-Content "$bundlePath/latest.json" -Encoding utf8
-          Write-Host "Generated $bundlePath/latest.json for $($zip.Name)."
+          Write-Host "Generated $bundlePath/latest.json."
 
       - name: Verify updater artifacts
         if: env.CODEX_GAUGE_UPDATER_ARTIFACTS == 'true'
@@ -156,13 +169,9 @@ jobs:
         run: |
           $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
           $latest = Get-ChildItem $bundlePath -Recurse -File -Filter "latest.json"
-          $zip = Get-ChildItem $bundlePath -Recurse -File -Filter "*.zip"
           $sig = Get-ChildItem $bundlePath -Recurse -File -Filter "*.sig"
           if (-not $latest) {
             throw "Updater artifacts are enabled, but latest.json was not generated."
-          }
-          if (-not $zip) {
-            throw "Updater artifacts are enabled, but updater zip package was not generated."
           }
           if (-not $sig) {
             throw "Updater artifacts are enabled, but signature files were not generated."
