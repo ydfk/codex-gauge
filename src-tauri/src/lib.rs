@@ -7,6 +7,9 @@ mod window;
 
 use std::sync::Mutex;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 use codex::{refresh_codex_snapshot, CodexUsageSnapshot, ResetStats, SnapshotStatus};
 use storage::{AppConfig, AppStorage, StateDocument};
 use tauri::{AppHandle, Manager, State};
@@ -171,12 +174,24 @@ fn get_reset_stats(state: State<'_, AppState>) -> ResetStats {
 #[tauri::command]
 fn open_codex_login(state: State<'_, AppState>) -> Result<(), String> {
     let config = state.config.lock().expect("config mutex").clone();
-    std::process::Command::new(config.codex.command)
-        .arg("login")
+    let mut command = std::process::Command::new(config.codex.command);
+    command.arg("login");
+    hide_windows_console(&mut command);
+
+    command
         .spawn()
         .map(|_| ())
         .map_err(|err| format!("无法启动 Codex 登录：{}", safe_error_kind(&err)))
 }
+
+#[cfg(windows)]
+fn hide_windows_console(command: &mut std::process::Command) {
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_windows_console(_command: &mut std::process::Command) {}
 
 #[tauri::command]
 fn show_main_window(app: AppHandle) -> Result<(), String> {

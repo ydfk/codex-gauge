@@ -125,19 +125,32 @@ impl CodexAppServer {
 }
 
 fn spawn_app_server(command: &str) -> Result<Child, AppServerError> {
-    Command::new(command)
+    let mut command = Command::new(command);
+    command
         .arg("app-server")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|err| match err.kind() {
-            std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied => {
-                AppServerError::CommandNotFound
-            }
-            _ => AppServerError::AppServer,
-        })
+        .stderr(Stdio::null());
+    hide_windows_console(&mut command);
+
+    command.spawn().map_err(|err| match err.kind() {
+        std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied => {
+            AppServerError::CommandNotFound
+        }
+        _ => AppServerError::AppServer,
+    })
 }
+
+#[cfg(windows)]
+fn hide_windows_console(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_windows_console(_command: &mut Command) {}
 
 fn codex_command_candidates(command: &str) -> Vec<String> {
     if command != "codex" && command != "codex.exe" {

@@ -1,7 +1,7 @@
 {
   "name": "codex-gauge",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.0.3",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -33,5 +33,9 @@
     "typescript": "^5.9.2",
     "vite": "^7.1.5"
   },
-  "packageManager": "pnpm@11.8.0"
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=26.0.0",
+    "pnpm": ">=11.0.0"
+  }
 }
