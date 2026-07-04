@@ -16,6 +16,7 @@
     "dev:desktop": "tauri dev",
     "build:desktop": "tauri build",
     "diagnose:codex": "node scripts/diagnose-codex.mjs",
+    "diagnose:credits": "node scripts/diagnose-reset-credits.mjs",
     "version:sync": "node scripts/sync-version.mjs"
   },
   "dependencies": {

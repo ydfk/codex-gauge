@@ -2,12 +2,15 @@ use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewWindow, Wi
 
 use crate::AppState;
 
-pub const COLLAPSED_WIDTH: u32 = 360;
-pub const COLLAPSED_HEIGHT: u32 = 142;
+pub const COLLAPSED_WIDTH: u32 = 430;
+pub const COLLAPSED_HEIGHT: u32 = 104;
 pub const EXPANDED_WIDTH: u32 = 460;
 pub const EXPANDED_HEIGHT: u32 = 640;
+pub const TOP_WIDTH: u32 = 272;
+pub const TOP_HEIGHT: u32 = 34;
 
 const DEFAULT_TOP_MARGIN: i32 = 28;
+const TOP_STATUS_MARGIN: i32 = 8;
 
 pub fn main_window_size(expanded: bool) -> LogicalSize<u32> {
     if expanded {
@@ -51,6 +54,33 @@ pub fn setup_main_window(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
+    let Some(window) = app.get_webview_window("top") else {
+        return Ok(());
+    };
+
+    let state = app.state::<AppState>();
+    let config = state.config.lock().expect("config mutex").clone();
+
+    window.set_size(LogicalSize::new(TOP_WIDTH, TOP_HEIGHT))?;
+    let _ = window.set_shadow(false);
+    window.set_always_on_top(true)?;
+    place_top_window(&window);
+    if !config.general.top_status_enabled {
+        let _ = window.hide();
+    }
+
+    let top_window = window.clone();
+    window.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = top_window.hide();
+        }
+    });
+
+    Ok(())
+}
+
 fn place_main_window(window: &WebviewWindow, x: Option<i32>, y: Option<i32>) {
     if let (Some(x), Some(y)) = (x, y) {
         let _ = window.set_position(PhysicalPosition::new(x, y));
@@ -66,5 +96,18 @@ fn place_main_window(window: &WebviewWindow, x: Option<i32>, y: Option<i32>) {
     let physical_width = (COLLAPSED_WIDTH as f64 * monitor.scale_factor()).round() as u32;
     let x = monitor_origin.x + ((monitor_size.width.saturating_sub(physical_width)) / 2) as i32;
     let y = monitor_origin.y + DEFAULT_TOP_MARGIN;
+    let _ = window.set_position(PhysicalPosition::new(x, y));
+}
+
+fn place_top_window(window: &WebviewWindow) {
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        return;
+    };
+
+    let monitor_origin = monitor.position();
+    let monitor_size = monitor.size();
+    let physical_width = (TOP_WIDTH as f64 * monitor.scale_factor()).round() as u32;
+    let x = monitor_origin.x + ((monitor_size.width.saturating_sub(physical_width)) / 2) as i32;
+    let y = monitor_origin.y + TOP_STATUS_MARGIN;
     let _ = window.set_position(PhysicalPosition::new(x, y));
 }

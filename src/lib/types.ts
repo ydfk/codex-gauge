@@ -1,17 +1,24 @@
 export type UsageWindow = {
-  label: "5h" | "1w" | "other";
-  usedPercent: number | null;
-  remainingPercent: number | null;
-  windowDurationMins: number | null;
-  resetsAt: number | null;
-  resetRemainingText: string | null;
+  name: "5h" | "weekly";
+  usedPercent?: number | null;
+  remainingPercent?: number | null;
+  resetAt?: number | null;
+  windowDurationSeconds?: number | null;
 };
 
-export type TokenUsage = {
-  todayTokens: number | null;
-  weekTokens: number | null;
-  lifetimeTokens: number | null;
-  peakDailyTokens: number | null;
+export type UsageCredits = {
+  remaining?: number | null;
+  availableCount?: number | null;
+  resetCredits?: number | null;
+  resetAt?: number | null;
+  items?: ResetCreditItem[];
+};
+
+export type ResetCreditItem = {
+  status?: string | null;
+  title?: string | null;
+  grantedAt?: string | null;
+  expiresAt?: string | null;
 };
 
 export type ResetUsage = {
@@ -28,19 +35,15 @@ export type ResetUsage = {
   lastAvailableResetCredits: number | null;
 };
 
-export type CodexGaugeSnapshot = {
-  accountEmail: string | null;
-  planType: string | null;
-  fiveHour: UsageWindow | null;
-  weekly: UsageWindow | null;
-  otherWindows: UsageWindow[];
-  reset: ResetUsage;
-  tokenUsage: TokenUsage;
-  credits: unknown | null;
-  rateLimitReachedType: string | null;
-  lastUpdatedAt: number;
-  source: "codex-app-server";
-  status: "ok" | "not_logged_in" | "codex_not_found" | "app_server_error" | "partial";
+export type CodexUsageSnapshot = {
+  source: "auth-json" | "app-server" | "session-log";
+  status: "ok" | "not_logged_in" | "invalid_auth" | "request_failed";
+  planType?: string | null;
+  primaryWindow?: UsageWindow | null;
+  secondaryWindow?: UsageWindow | null;
+  credits?: UsageCredits | null;
+  rateLimitReachedType?: string | null;
+  updatedAt: number;
 };
 
 export type AppConfig = {
@@ -50,12 +53,15 @@ export type AppConfig = {
     showOnStartup: boolean;
     alwaysOnTop: boolean;
     lockPosition: boolean;
+    oledShiftEnabled: boolean;
+    topStatusEnabled: boolean;
     opacity: number;
     refreshIntervalSeconds: number;
   };
   codex: {
     command: string;
     transport: string;
+    preferredProvider: "api" | "app-server";
     enableUsageRead: boolean;
     enableResetStats: boolean;
   };

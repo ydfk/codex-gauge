@@ -1,80 +1,109 @@
 <script lang="ts">
-  import { formatPercent, formatReset, formatTokens, statusText, usageLevel } from "../lib/format";
-  import { resetCreditText } from "../lib/reset";
-  import type { CodexGaugeSnapshot } from "../lib/types";
-  import { startWindowDrag } from "../lib/window";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { formatCompactDateTime, formatPercent, statusText, usageLevel } from "../lib/format";
+  import type { CodexUsageSnapshot } from "../lib/types";
 
-  export let snapshot: CodexGaugeSnapshot | null = null;
+  export let snapshot: CodexUsageSnapshot | null = null;
   export let busy = false;
   export let message = "";
   export let onopen: () => void;
-  export let onrefresh: () => void;
+  export let onmenu: (event: MouseEvent) => void;
 
   $: level = usageLevel(snapshot);
-  $: fiveHourWidth = barWidth(snapshot?.fiveHour?.usedPercent);
-  $: weeklyWidth = barWidth(snapshot?.weekly?.usedPercent);
+  $: fiveHourWidth = barWidth(snapshot?.primaryWindow?.remainingPercent);
+  $: weeklyWidth = barWidth(snapshot?.secondaryWindow?.remainingPercent);
+  $: fiveHourTone = meterTone(snapshot?.primaryWindow?.remainingPercent);
+  $: weeklyTone = meterTone(snapshot?.secondaryWindow?.remainingPercent);
+  $: resetCount = snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知";
+  $: usedSummary = snapshot
+    ? `5h已用 ${formatPercent(snapshot.primaryWindow?.usedPercent)} · 7d已用 ${formatPercent(snapshot.secondaryWindow?.usedPercent)}`
+    : statusText(snapshot);
+
+  let dragStart: { x: number; y: number; dragging: boolean } | null = null;
 
   function barWidth(value: number | null | undefined) {
     return `${Math.max(0, Math.min(100, value ?? 0))}%`;
   }
+
+  function meterTone(value: number | null | undefined) {
+    if (value == null) return "tone-muted";
+    if (value <= 5) return "tone-empty";
+    if (value <= 15) return "tone-critical";
+    if (value <= 30) return "tone-low";
+    if (value <= 50) return "tone-mid";
+    if (value <= 70) return "tone-good";
+    return "tone-full";
+  }
+
+  function handlePointerDown(event: PointerEvent) {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+    dragStart = { x: event.clientX, y: event.clientY, dragging: false };
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    if (!dragStart || dragStart.dragging) return;
+    const moved = Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y);
+    if (moved < 6) return;
+
+    dragStart.dragging = true;
+    void getCurrentWindow().startDragging();
+  }
+
+  function handlePointerUp() {
+    dragStart = null;
+  }
+
+  function handleDoubleClick() {
+    if (dragStart?.dragging) return;
+    onopen();
+  }
 </script>
 
-<section class={`floating-widget level-${level}`} data-tauri-drag-region>
-  <div class="glass-refraction" data-tauri-drag-region></div>
+<section class={`floating-widget level-${level}`}>
+  <div class="glass-refraction"></div>
   <div
     class="widget-body"
     role="presentation"
-    title="双击查看详情"
-    data-tauri-drag-region
-    onpointerdown={startWindowDrag}
-    ondblclick={onopen}
+    onpointerdown={handlePointerDown}
+    onpointermove={handlePointerMove}
+    onpointerup={handlePointerUp}
+    onpointercancel={handlePointerUp}
+    oncontextmenu={onmenu}
+    ondblclick={handleDoubleClick}
   >
-    <header class="widget-top" data-tauri-drag-region>
-      <span class="brand-stack" data-tauri-drag-region>
-        <span class="brand" data-tauri-drag-region>Codex Gauge</span>
-        <span class="status-copy" data-tauri-drag-region>{statusText(snapshot)}</span>
+    <header class="widget-top">
+      <span class="brand-cluster">
+        <span class="brand-line">
+          <span class={`status-dot ${busy ? "pulse" : ""}`} aria-label={statusText(snapshot)}></span>
+          <span class="brand">Codex</span>
+        </span>
       </span>
-      <span class={`status-dot ${busy ? "pulse" : ""}`} aria-label={statusText(snapshot)} data-tauri-drag-region></span>
+      <span class="status-copy">{usedSummary}</span>
+      <span class="credit-chip">重置次数: {resetCount}</span>
     </header>
 
-    <div class="usage-matrix" data-tauri-drag-region>
-      <div class="usage-line" data-tauri-drag-region>
-        <div class="usage-card-head" data-tauri-drag-region>
-          <span data-tauri-drag-region>5h</span>
-          <strong data-tauri-drag-region>{formatPercent(snapshot?.fiveHour?.usedPercent)}</strong>
+    <div class="usage-matrix">
+      <div class="usage-line">
+        <div class="usage-card-head">
+          <span>5h</span>
+          <strong>{formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
         </div>
-        <div class="liquid-meter" data-tauri-drag-region>
-          <span style={`width: ${fiveHourWidth}`} data-tauri-drag-region></span>
+        <div class={`segmented-meter ${fiveHourTone}`}>
+          <span style={`width: ${fiveHourWidth}`}></span>
         </div>
-        <small data-tauri-drag-region>{formatReset(snapshot?.fiveHour?.resetRemainingText)}</small>
+        <small>{formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}</small>
       </div>
-      <div class="usage-line" data-tauri-drag-region>
-        <div class="usage-card-head" data-tauri-drag-region>
-          <span data-tauri-drag-region>1w</span>
-          <strong data-tauri-drag-region>{formatPercent(snapshot?.weekly?.usedPercent)}</strong>
+      <div class="usage-line">
+        <div class="usage-card-head">
+          <span>7d</span>
+          <strong>{formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</strong>
         </div>
-        <div class="liquid-meter" data-tauri-drag-region>
-          <span style={`width: ${weeklyWidth}`} data-tauri-drag-region></span>
+        <div class={`segmented-meter ${weeklyTone}`}>
+          <span style={`width: ${weeklyWidth}`}></span>
         </div>
-        <small data-tauri-drag-region>{formatReset(snapshot?.weekly?.resetRemainingText)}</small>
+        <small>{formatCompactDateTime(snapshot?.secondaryWindow?.resetAt)}</small>
       </div>
     </div>
-
-    <footer class="widget-bottom" data-tauri-drag-region>
-      <span class="credit-chip" data-tauri-drag-region>{resetCreditText(snapshot?.reset)}</span>
-      <span data-tauri-drag-region>Today {formatTokens(snapshot?.tokenUsage.todayTokens)}</span>
-    </footer>
-  </div>
-
-  <div class="quick-actions">
-    <button type="button" title="刷新" aria-label="刷新" onclick={(event) => {
-      event.stopPropagation();
-      onrefresh();
-    }}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M20 11a8 8 0 1 0-2.34 5.66M20 11V5m0 6h-6" />
-      </svg>
-    </button>
   </div>
 
   {#if message}

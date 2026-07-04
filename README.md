@@ -1,14 +1,15 @@
 # Codex Gauge
 
-Codex Gauge 是一个轻量级 Windows 桌面浮窗，用于通过本机 `codex app-server` 查看 Codex 用量。它不读取 Codex 认证文件，不保存 Token，也不上传任何用户数据。
+Codex Gauge 是一个轻量级 Windows 桌面浮窗，用于通过本机 Codex 登录状态查看 Codex 剩余用量。应用优先在 Rust 后端内存中读取 Codex OAuth 登录状态的必要字段，请求 ChatGPT wham 用量接口；失败时回退本机 `codex app-server`。它不保存 Token，也不上传任何用户数据。
 
 ## Features
 
 - Tauri v2 + Svelte + TypeScript + Rust
 - Windows 透明无边框浮窗，默认约 `220x92`
 - 系统托盘常驻，支持打开、隐藏、刷新、设置和退出
-- 通过 stdio JSON-RPC 调用本机 `codex app-server`
-- 显示 5 小时窗口、一周窗口、可用重置次数和 Token 统计
+- 优先使用本机 `.codex/auth.json` 登录状态查询 wham 用量接口
+- `auth-json` 不可用时回退 stdio JSON-RPC `codex app-server`
+- 显示 5 小时窗口、Weekly 窗口和可用重置次数
 - 本地 JSON 保存配置、状态和最多 90 天用量历史
 - GitHub Releases 在线检查更新，支持手动安装
 - Windows x64 GitHub Actions 打包发布
@@ -17,14 +18,15 @@ Codex Gauge 是一个轻量级 Windows 桌面浮窗，用于通过本机 `codex 
 
 Codex Gauge 遵守这些边界：
 
-- 不读取 `~/.codex/auth.json`
+- 只在 Rust 后端内存中读取 `CODEX_HOME/auth.json` 或 `~/.codex/auth.json` 的必要字段
 - 不保存 `access_token`、`refresh_token`、Cookie 或任何敏感凭据
+- 不把认证字段传给前端、状态文件或历史文件
 - 不抓取 ChatGPT 网页
 - 不上传账号、用量、配置或历史数据
 - 不输出 app-server 原始响应、账号邮箱明文或 Token
 - 不调用消耗重置次数的接口
 
-更多说明见 [SECURITY.md](SECURITY.md)。
+更多说明见 [SECURITY.md](docs/SECURITY.md)。
 
 ## Requirements
 
@@ -32,7 +34,7 @@ Codex Gauge 遵守这些边界：
 - Node.js 26+
 - pnpm 11+
 - Rust stable
-- Codex CLI，并可在本机启动 `codex app-server`
+- 已登录的 Codex CLI 或 Codex Desktop 登录状态
 
 ## Development
 
@@ -59,11 +61,10 @@ pnpm version:sync v0.1.0
 
 如果界面一直显示“未知”，通常是下面几类原因：
 
-1. `codex` 命令不可执行或被 Windows 拒绝访问。
-2. `codex app-server` 没有启动成功。
-3. 当前 Codex 没登录，或登录态不可被 app-server 使用。
-4. 当前 Codex CLI 版本不支持 `account/rateLimits/read` 或 `account/usage/read`。
-5. app-server 返回字段结构变化，解析器只能降级显示“未知”。
+1. `CODEX_HOME/auth.json` 或 `~/.codex/auth.json` 不存在，或没有可用登录状态。
+2. Codex 登录凭据过期，wham 接口返回 401/403，需要重新登录 Codex。
+3. 网络请求失败，或 wham 接口结构变化，解析器只能降级显示“未知”。
+4. `codex app-server` 回退不可用，例如 `codex` 命令不存在或被 Windows 拒绝访问。
 
 先运行脱敏诊断：
 
@@ -71,15 +72,14 @@ pnpm version:sync v0.1.0
 pnpm diagnose:codex
 ```
 
-诊断脚本不会读取 `~/.codex/auth.json`，也不会输出 app-server 原始响应。重点看：
+诊断脚本不会输出认证信息、app-server 原始响应或请求头。重点看：
 
 - `codex --version` 是否 `[OK]`
 - `initialize / initialized` 是否 `[OK]`
-- `account/read` 是否 `[OK]`
 - `account/rateLimits/read` 是否 `[OK]`
-- `account/usage/read` 失败时只会影响 Token 统计，不应影响 5h/1w 主用量
+- 如果 app-server 不可用，应用仍会优先尝试 AuthJson Provider
 
-如果 `codex --version` 是 `permission_denied`，请检查 Codex 安装来源、WindowsApps 权限，或在设置里把 Codex command 改为可执行的真实路径。
+如果 wham 查询返回“Codex 凭据无效”，请重新登录 Codex。若 `codex --version` 是 `permission_denied`，请检查 Codex 安装来源、WindowsApps 权限，或在设置里把 Codex command 改为可执行的真实路径。
 
 ## Local Data
 
@@ -89,7 +89,7 @@ Windows 默认路径：
 - `%APPDATA%\CodexGauge\state.json`
 - `%APPDATA%\CodexGauge\usage-history.json`
 
-这些文件只保存配置、脱敏状态和本地统计，不包含 OAuth Token、Cookie 或 app-server 原始响应。
+这些文件只保存配置、脱敏状态和本地统计，不包含 OAuth Token、Cookie、请求头或 app-server 原始响应。
 
 ## Release
 

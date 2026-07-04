@@ -1,15 +1,32 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageWindow {
-    pub label: String,
+    pub name: String,
     pub used_percent: Option<f64>,
     pub remaining_percent: Option<f64>,
-    pub window_duration_mins: Option<i64>,
-    pub resets_at: Option<i64>,
-    pub reset_remaining_text: Option<String>,
+    pub reset_at: Option<i64>,
+    pub window_duration_seconds: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageCredits {
+    pub remaining: Option<i64>,
+    pub available_count: Option<i64>,
+    pub reset_credits: Option<i64>,
+    pub reset_at: Option<i64>,
+    pub items: Vec<ResetCreditItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetCreditItem {
+    pub status: Option<String>,
+    pub title: Option<String>,
+    pub granted_at: Option<String>,
+    pub expires_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -22,45 +39,44 @@ pub struct TokenUsage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum SnapshotSource {
+    AuthJson,
+    AppServer,
+    SessionLog,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum SnapshotStatus {
     Ok,
     NotLoggedIn,
-    CodexNotFound,
-    AppServerError,
-    Partial,
+    InvalidAuth,
+    RequestFailed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CodexGaugeSnapshot {
-    pub account_email: Option<String>,
-    pub plan_type: Option<String>,
-    pub five_hour: Option<UsageWindow>,
-    pub weekly: Option<UsageWindow>,
-    pub other_windows: Vec<UsageWindow>,
-    pub reset: super::ResetStats,
-    pub token_usage: TokenUsage,
-    pub credits: Option<Value>,
-    pub rate_limit_reached_type: Option<String>,
-    pub last_updated_at: i64,
-    pub source: String,
+pub struct CodexUsageSnapshot {
+    pub source: SnapshotSource,
     pub status: SnapshotStatus,
+    pub plan_type: Option<String>,
+    pub primary_window: Option<UsageWindow>,
+    pub secondary_window: Option<UsageWindow>,
+    pub credits: Option<UsageCredits>,
+    pub rate_limit_reached_type: Option<String>,
+    pub updated_at: i64,
 }
 
-pub fn empty_snapshot() -> CodexGaugeSnapshot {
-    CodexGaugeSnapshot {
-        account_email: None,
+pub fn empty_snapshot(source: SnapshotSource, status: SnapshotStatus) -> CodexUsageSnapshot {
+    CodexUsageSnapshot {
+        source,
+        status,
         plan_type: None,
-        five_hour: None,
-        weekly: None,
-        other_windows: Vec::new(),
-        reset: super::ResetStats::default(),
-        token_usage: TokenUsage::default(),
+        primary_window: None,
+        secondary_window: None,
         credits: None,
         rate_limit_reached_type: None,
-        last_updated_at: chrono::Local::now().timestamp(),
-        source: "codex-app-server".to_string(),
-        status: SnapshotStatus::AppServerError,
+        updated_at: chrono::Local::now().timestamp(),
     }
 }

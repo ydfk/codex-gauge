@@ -1,11 +1,12 @@
 # Security
 
-Codex Gauge 只通过本机 `codex app-server` 获取状态，不直接读取 Codex 的认证文件。
+Codex Gauge 优先通过本机 Codex OAuth 登录状态查询 wham 用量接口，失败时回退本机 `codex app-server`。认证字段只在 Rust 后端内存中短暂使用，不保存、不传给前端、不写入日志。
 
 ## 不做的事情
 
-- 不读取 `~/.codex/auth.json`
+- 不保存完整 `auth.json` 内容
 - 不保存 `access_token`、`refresh_token`、OAuth Cookie 或 ChatGPT Cookie
+- 不把认证字段传给前端、状态文件或历史文件
 - 不抓取 ChatGPT 网页
 - 不上传账号、用量、配置或历史数据
 - 不记录 app-server 原始响应
@@ -30,3 +31,4 @@ Codex Gauge 只通过本机 `codex app-server` 获取状态，不直接读取 Co
 - Token
 - Cookie
 - OAuth 凭据
+- Authorization 请求头

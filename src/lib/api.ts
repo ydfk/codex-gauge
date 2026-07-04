@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppConfig, CodexGaugeSnapshot, ResetUsage, UpdateCheckResult } from "./types";
+import type { AppConfig, CodexUsageSnapshot, ResetUsage, UpdateCheckResult } from "./types";
 
 export function getSnapshot() {
-  return invoke<CodexGaugeSnapshot>("get_snapshot");
+  return invoke<CodexUsageSnapshot>("get_snapshot");
 }
 
 export function refreshSnapshot() {
-  return invoke<CodexGaugeSnapshot>("refresh_snapshot");
+  return invoke<CodexUsageSnapshot>("refresh_snapshot");
 }
 
 export function getConfig() {

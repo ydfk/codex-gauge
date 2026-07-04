@@ -8,6 +8,6 @@ export function ringTone(value: number | null | undefined) {
   if (value == null) return "muted";
   if (value >= 95) return "danger";
   if (value >= 85) return "warning";
-  if (value >= 60) return "notice";
+  if (value >= 70) return "notice";
   return "ok";
 }

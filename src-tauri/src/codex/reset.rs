@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::storage::StateDocument;
 
-use super::{CodexGaugeSnapshot, UsageWindow};
+use super::{CodexUsageSnapshot, UsageWindow};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -38,32 +38,34 @@ impl Default for ResetStats {
     }
 }
 
-pub fn apply_reset_inference(state: &mut StateDocument, snapshot: &mut CodexGaugeSnapshot) {
-    let available_reset_credits = snapshot.reset.available_reset_credits;
-    snapshot.reset = state.reset_stats.clone();
-    snapshot.reset.available_reset_credits = available_reset_credits;
+pub fn apply_reset_inference(state: &mut StateDocument, snapshot: &CodexUsageSnapshot) {
+    let mut stats = state.reset_stats.clone();
+    stats.available_reset_credits = snapshot
+        .credits
+        .as_ref()
+        .and_then(|credits| credits.reset_credits);
 
     let previous = state.last_snapshot.clone();
     if let Some(previous) = previous.as_ref() {
         record_natural_reset(
-            &mut snapshot.reset,
-            previous.five_hour.as_ref(),
-            snapshot.five_hour.as_ref(),
+            &mut stats,
+            previous.primary_window.as_ref(),
+            snapshot.primary_window.as_ref(),
         );
         record_natural_reset(
-            &mut snapshot.reset,
-            previous.weekly.as_ref(),
-            snapshot.weekly.as_ref(),
+            &mut stats,
+            previous.secondary_window.as_ref(),
+            snapshot.secondary_window.as_ref(),
         );
-        if should_record_manual_reset(previous, snapshot) {
-            snapshot.reset.today_manual_reset_consumed += 1;
-            snapshot.reset.week_manual_reset_consumed += 1;
-            snapshot.reset.total_manual_reset_consumed += 1;
+        if should_record_manual_reset(previous, snapshot, &stats) {
+            stats.today_manual_reset_consumed += 1;
+            stats.week_manual_reset_consumed += 1;
+            stats.total_manual_reset_consumed += 1;
         }
     }
 
-    snapshot.reset.last_available_reset_credits = snapshot.reset.available_reset_credits;
-    state.reset_stats = snapshot.reset.clone();
+    stats.last_available_reset_credits = stats.available_reset_credits;
+    state.reset_stats = stats;
 }
 
 fn record_natural_reset(
@@ -74,27 +76,27 @@ fn record_natural_reset(
     let now = chrono::Local::now().timestamp();
     let Some(old_window) = old_window else { return };
     let Some(new_window) = new_window else { return };
-    let Some(old_resets_at) = old_window.resets_at else {
+    let Some(old_reset_at) = old_window.reset_at else {
         return;
     };
-    let Some(new_resets_at) = new_window.resets_at else {
+    let Some(new_reset_at) = new_window.reset_at else {
         return;
     };
 
-    if old_resets_at >= now
-        || new_resets_at <= old_resets_at
+    if old_reset_at >= now
+        || new_reset_at <= old_reset_at
         || !used_percent_dropped(old_window, new_window, 0.1)
     {
         return;
     }
 
-    match new_window.label.as_str() {
+    match new_window.name.as_str() {
         "5h" => {
             stats.today_auto_reset_5h += 1;
             stats.week_auto_reset_5h += 1;
             stats.total_auto_reset_5h += 1;
         }
-        "1w" => {
+        "weekly" => {
             stats.today_auto_reset_weekly += 1;
             stats.week_auto_reset_weekly += 1;
             stats.total_auto_reset_weekly += 1;
@@ -104,25 +106,39 @@ fn record_natural_reset(
 }
 
 fn should_record_manual_reset(
-    previous: &CodexGaugeSnapshot,
-    snapshot: &CodexGaugeSnapshot,
+    previous: &CodexUsageSnapshot,
+    snapshot: &CodexUsageSnapshot,
+    stats: &ResetStats,
 ) -> bool {
-    let Some(old_count) = previous.reset.available_reset_credits else {
+    let Some(old_count) = previous
+        .credits
+        .as_ref()
+        .and_then(|credits| credits.reset_credits)
+        .or(stats.last_available_reset_credits)
+    else {
         return false;
     };
-    let Some(new_count) = snapshot.reset.available_reset_credits else {
+    let Some(new_count) = snapshot
+        .credits
+        .as_ref()
+        .and_then(|credits| credits.reset_credits)
+    else {
         return false;
     };
 
     new_count < old_count && any_window_dropped(previous, snapshot)
 }
 
-fn any_window_dropped(previous: &CodexGaugeSnapshot, snapshot: &CodexGaugeSnapshot) -> bool {
+fn any_window_dropped(previous: &CodexUsageSnapshot, snapshot: &CodexUsageSnapshot) -> bool {
     option_window_dropped(
-        previous.five_hour.as_ref(),
-        snapshot.five_hour.as_ref(),
+        previous.primary_window.as_ref(),
+        snapshot.primary_window.as_ref(),
         5.0,
-    ) || option_window_dropped(previous.weekly.as_ref(), snapshot.weekly.as_ref(), 5.0)
+    ) || option_window_dropped(
+        previous.secondary_window.as_ref(),
+        snapshot.secondary_window.as_ref(),
+        5.0,
+    )
 }
 
 fn used_percent_dropped(

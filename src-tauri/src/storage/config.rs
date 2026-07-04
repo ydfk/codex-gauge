@@ -17,6 +17,10 @@ pub struct GeneralConfig {
     pub show_on_startup: bool,
     pub always_on_top: bool,
     pub lock_position: bool,
+    #[serde(default)]
+    pub oled_shift_enabled: bool,
+    #[serde(default = "default_true")]
+    pub top_status_enabled: bool,
     pub opacity: f32,
     pub refresh_interval_seconds: u64,
 }
@@ -26,6 +30,8 @@ pub struct GeneralConfig {
 pub struct CodexConfig {
     pub command: String,
     pub transport: String,
+    #[serde(default = "default_provider")]
+    pub preferred_provider: String,
     pub enable_usage_read: bool,
     pub enable_reset_stats: bool,
 }
@@ -55,12 +61,15 @@ impl Default for AppConfig {
                 show_on_startup: true,
                 always_on_top: true,
                 lock_position: false,
+                oled_shift_enabled: false,
+                top_status_enabled: true,
                 opacity: 0.92,
                 refresh_interval_seconds: 60,
             },
             codex: CodexConfig {
                 command: "codex".to_string(),
                 transport: "stdio".to_string(),
+                preferred_provider: default_provider(),
                 enable_usage_read: true,
                 enable_reset_stats: true,
             },
@@ -71,9 +80,17 @@ impl Default for AppConfig {
             window: WindowConfig {
                 x: None,
                 y: None,
-                width: 360.0,
-                height: 142.0,
+                width: 430.0,
+                height: 104.0,
             },
         }
     }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_provider() -> String {
+    "api".to_string()
 }

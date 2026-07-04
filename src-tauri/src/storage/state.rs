@@ -7,13 +7,13 @@ use chrono::{Datelike, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 use super::AppConfig;
-use crate::codex::{CodexGaugeSnapshot, ResetStats};
+use crate::codex::{CodexUsageSnapshot, ResetStats};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StateDocument {
     pub version: u32,
-    pub last_snapshot: Option<CodexGaugeSnapshot>,
+    pub last_snapshot: Option<CodexUsageSnapshot>,
     pub reset_stats: ResetStats,
     pub stats_start_at: Option<i64>,
     pub last_stats_date: Option<String>,
@@ -111,7 +111,7 @@ impl AppStorage {
         write_json(&self.state_path(), state);
     }
 
-    pub fn record_usage_snapshot(&self, snapshot: &CodexGaugeSnapshot) {
+    pub fn record_usage_snapshot(&self, snapshot: &CodexUsageSnapshot) {
         let today = Local::now().date_naive();
         let mut history: UsageHistory = read_json(&self.usage_history_path()).unwrap_or_default();
 
@@ -130,25 +130,28 @@ impl AppStorage {
             .unwrap_or_else(|| {
                 history.daily.push(DailyUsageHistory {
                     date: date.clone(),
-                    tokens: snapshot.token_usage.today_tokens,
+                    tokens: None,
                     snapshots: Vec::new(),
                 });
                 history.daily.len() - 1
             });
         let daily = &mut history.daily[daily_index];
 
-        daily.tokens = snapshot.token_usage.today_tokens;
+        daily.tokens = None;
         daily.snapshots.push(UsageHistorySnapshot {
             time,
             five_hour_used_percent: snapshot
-                .five_hour
+                .primary_window
                 .as_ref()
                 .and_then(|window| window.used_percent),
             weekly_used_percent: snapshot
-                .weekly
+                .secondary_window
                 .as_ref()
                 .and_then(|window| window.used_percent),
-            available_reset_credits: snapshot.reset.available_reset_credits,
+            available_reset_credits: snapshot
+                .credits
+                .as_ref()
+                .and_then(|credits| credits.reset_credits),
         });
 
         write_json(&self.usage_history_path(), &history);
@@ -210,7 +213,7 @@ mod tests {
 
         let config = storage.load_config();
 
-        assert_eq!(config.window.width, 360.0);
+        assert_eq!(config.window.width, 430.0);
         assert!(temp.path().join("config.json").exists());
     }
 }

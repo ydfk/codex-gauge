@@ -1,4 +1,5 @@
 mod app_server;
+mod auth_json;
 mod parser;
 mod protocol;
 mod reset;
@@ -6,7 +7,10 @@ mod session_usage;
 mod snapshot;
 
 pub use reset::ResetStats;
-pub use snapshot::{CodexGaugeSnapshot, TokenUsage, UsageWindow};
+pub use snapshot::{
+    CodexUsageSnapshot, ResetCreditItem, SnapshotSource, SnapshotStatus, TokenUsage, UsageCredits,
+    UsageWindow,
+};
 
 use chrono::Local;
 use serde_json::Value;
@@ -14,115 +18,105 @@ use serde_json::Value;
 use crate::storage::{current_week_start, AppConfig, StateDocument};
 
 use app_server::CodexAppServer;
-use parser::{parse_account, parse_rate_limits, parse_usage};
+use auth_json::{read_auth_json_snapshot, AuthJsonError};
+use parser::{parse_account, parse_rate_limits};
 use reset::apply_reset_inference;
 use session_usage::read_session_token_usage;
-use snapshot::{empty_snapshot, SnapshotStatus};
 
-pub fn refresh_codex_snapshot(config: &AppConfig, state: &mut StateDocument) -> CodexGaugeSnapshot {
+pub fn refresh_codex_snapshot(config: &AppConfig, state: &mut StateDocument) -> CodexUsageSnapshot {
     reset_period_counters(state);
 
-    let mut snapshot = empty_snapshot();
-    let session_token_usage = read_session_token_usage();
-    let Ok(mut server) = CodexAppServer::start(&config.codex.command) else {
-        if let Some(token_usage) = session_token_usage {
-            snapshot.token_usage = token_usage;
-            snapshot.status = SnapshotStatus::Partial;
-            snapshot.source = "codex-session-log".to_string();
-        } else {
-            snapshot.status = SnapshotStatus::CodexNotFound;
+    if config.codex.preferred_provider == "app-server" {
+        if let Some(snapshot) = read_app_server_snapshot(config).filter(has_complete_usage) {
+            return finalize_snapshot(snapshot, state);
         }
-        snapshot.last_updated_at = Local::now().timestamp();
-        state.last_snapshot = Some(snapshot.clone());
-        return snapshot;
-    };
-
-    if server.initialize().is_err() {
-        if let Some(token_usage) = session_token_usage {
-            snapshot.token_usage = token_usage;
-            snapshot.status = SnapshotStatus::Partial;
-            snapshot.source = "codex-session-log".to_string();
-        } else {
-            snapshot.status = SnapshotStatus::AppServerError;
-        }
-        snapshot.last_updated_at = Local::now().timestamp();
-        state.last_snapshot = Some(snapshot.clone());
-        return snapshot;
+        return read_auth_or_fallback(state);
     }
 
-    let account = server.request("account/read");
-    let rate_limits = server.request("account/rateLimits/read");
-    let usage = if config.codex.enable_usage_read {
-        server.request("account/usage/read").ok()
-    } else {
-        None
-    };
+    match read_auth_json_snapshot() {
+        Ok(snapshot) if has_complete_usage(&snapshot) => finalize_snapshot(snapshot, state),
+        Err(auth_error) => {
+            if let Some(snapshot) = read_app_server_snapshot(config).filter(has_complete_usage) {
+                return finalize_snapshot(snapshot, state);
+            }
+            finalize_snapshot(fallback_snapshot(auth_error), state)
+        }
+        Ok(snapshot) => {
+            if let Some(app_snapshot) = read_app_server_snapshot(config).filter(has_complete_usage)
+            {
+                return finalize_snapshot(app_snapshot, state);
+            }
+            finalize_snapshot(snapshot, state)
+        }
+    }
+}
 
-    snapshot = build_snapshot(
-        account.ok(),
-        rate_limits.ok(),
-        usage,
-        session_token_usage,
-        state,
-    );
-    state.last_snapshot = Some(snapshot.clone());
-    if state.stats_start_at.is_none() {
-        state.stats_start_at = Some(snapshot.last_updated_at);
+fn read_auth_or_fallback(state: &mut StateDocument) -> CodexUsageSnapshot {
+    match read_auth_json_snapshot() {
+        Ok(snapshot) => finalize_snapshot(snapshot, state),
+        Err(auth_error) => finalize_snapshot(fallback_snapshot(auth_error), state),
+    }
+}
+
+fn read_app_server_snapshot(config: &AppConfig) -> Option<CodexUsageSnapshot> {
+    let mut server = CodexAppServer::start(&config.codex.command).ok()?;
+    server.initialize().ok()?;
+
+    let account = server.request("account/read").ok();
+    let rate_limits = server.request("account/rateLimits/read").ok()?;
+    Some(build_app_server_snapshot(account, rate_limits))
+}
+
+fn build_app_server_snapshot(account: Option<Value>, rate_limits: Value) -> CodexUsageSnapshot {
+    let mut snapshot = snapshot::empty_snapshot(SnapshotSource::AppServer, SnapshotStatus::Ok);
+    let parsed_account = account.as_ref().map(parse_account);
+
+    if let Some(parsed_account) = parsed_account.as_ref() {
+        snapshot.plan_type = parsed_account.plan_type.clone();
+    }
+
+    let parsed = parse_rate_limits(&rate_limits);
+    snapshot.primary_window = parsed.five_hour;
+    snapshot.secondary_window = parsed.weekly;
+    snapshot.credits = parsed.credits;
+    snapshot.plan_type = parsed.plan_type.or(snapshot.plan_type);
+    snapshot.rate_limit_reached_type = parsed.rate_limit_reached_type;
+    if snapshot.primary_window.is_none() && snapshot.secondary_window.is_none() {
+        snapshot.status = SnapshotStatus::RequestFailed;
     }
 
     snapshot
 }
 
-fn build_snapshot(
-    account: Option<Value>,
-    rate_limits: Option<Value>,
-    usage: Option<Value>,
-    fallback_usage: Option<TokenUsage>,
+fn finalize_snapshot(
+    mut snapshot: CodexUsageSnapshot,
     state: &mut StateDocument,
-) -> CodexGaugeSnapshot {
-    let mut snapshot = empty_snapshot();
-    let parsed_account = account.as_ref().map(parse_account);
-
-    if let Some(parsed_account) = parsed_account.as_ref() {
-        snapshot.account_email = parsed_account.account_email.clone();
-        snapshot.plan_type = parsed_account.plan_type.clone();
+) -> CodexUsageSnapshot {
+    snapshot.updated_at = Local::now().timestamp();
+    apply_reset_inference(state, &snapshot);
+    state.last_snapshot = Some(snapshot.clone());
+    if state.stats_start_at.is_none() {
+        state.stats_start_at = Some(snapshot.updated_at);
     }
-
-    if let Some(rate_limits) = rate_limits.as_ref() {
-        let parsed = parse_rate_limits(rate_limits);
-        snapshot.five_hour = parsed.five_hour;
-        snapshot.weekly = parsed.weekly;
-        snapshot.other_windows = parsed.other_windows;
-        snapshot.reset.available_reset_credits = parsed.available_reset_credits;
-        snapshot.plan_type = parsed.plan_type.or(snapshot.plan_type);
-        snapshot.credits = parsed.credits;
-        snapshot.rate_limit_reached_type = parsed.rate_limit_reached_type;
-        snapshot.status = if snapshot.five_hour.is_some() || snapshot.weekly.is_some() {
-            SnapshotStatus::Ok
-        } else {
-            SnapshotStatus::Partial
-        };
-    } else if parsed_account.is_none() {
-        snapshot.status = SnapshotStatus::NotLoggedIn;
-    } else {
-        snapshot.status = SnapshotStatus::Partial;
-    }
-
-    if let Some(usage) = usage.as_ref() {
-        snapshot.token_usage = parse_usage(usage);
-    }
-    if snapshot.token_usage == TokenUsage::default() {
-        if let Some(fallback_usage) = fallback_usage {
-            snapshot.token_usage = fallback_usage;
-            if snapshot.status != SnapshotStatus::Ok {
-                snapshot.status = SnapshotStatus::Partial;
-            }
-        }
-    }
-
-    apply_reset_inference(state, &mut snapshot);
-    snapshot.last_updated_at = Local::now().timestamp();
     snapshot
+}
+
+fn status_for_auth_error(error: AuthJsonError) -> SnapshotStatus {
+    error.status()
+}
+
+fn fallback_snapshot(auth_error: AuthJsonError) -> CodexUsageSnapshot {
+    let source = if read_session_token_usage().is_some() {
+        SnapshotSource::SessionLog
+    } else {
+        SnapshotSource::AuthJson
+    };
+    snapshot::empty_snapshot(source, status_for_auth_error(auth_error))
+}
+
+fn has_complete_usage(snapshot: &CodexUsageSnapshot) -> bool {
+    snapshot.status == SnapshotStatus::Ok
+        && (snapshot.primary_window.is_some() || snapshot.secondary_window.is_some())
 }
 
 fn reset_period_counters(state: &mut StateDocument) {

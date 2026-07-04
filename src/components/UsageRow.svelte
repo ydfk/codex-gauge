@@ -8,14 +8,14 @@
 <div class="usage-row">
   <div>
     <span>{windowTitle(window)}</span>
-    <strong>已用 {formatPercent(window?.usedPercent)}</strong>
+    <strong>使用 {formatPercent(window?.usedPercent)}</strong>
   </div>
   <div>
     <span>剩余 {formatPercent(window?.remainingPercent)}</span>
-    <strong>{formatReset(window?.resetRemainingText)}</strong>
+    <strong>{formatReset(window?.resetAt)}</strong>
   </div>
   <div>
     <span>重置</span>
-    <strong>{formatDateTime(window?.resetsAt)}</strong>
+    <strong>{formatDateTime(window?.resetAt)}</strong>
   </div>
 </div>

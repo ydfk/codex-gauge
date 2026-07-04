@@ -1,11 +1,9 @@
-use chrono::{Datelike, Local, NaiveDate};
 use serde_json::Value;
 
-use super::{TokenUsage, UsageWindow};
+use super::{UsageCredits, UsageWindow};
 
 #[derive(Debug, Clone)]
 pub struct ParsedAccount {
-    pub account_email: Option<String>,
     pub plan_type: Option<String>,
 }
 
@@ -13,17 +11,14 @@ pub struct ParsedAccount {
 pub struct ParsedRateLimits {
     pub five_hour: Option<UsageWindow>,
     pub weekly: Option<UsageWindow>,
-    pub other_windows: Vec<UsageWindow>,
-    pub available_reset_credits: Option<i64>,
+    pub credits: Option<UsageCredits>,
     pub plan_type: Option<String>,
-    pub credits: Option<Value>,
     pub rate_limit_reached_type: Option<String>,
 }
 
 pub fn parse_account(value: &Value) -> ParsedAccount {
     let root = value.get("result").unwrap_or(value);
     ParsedAccount {
-        account_email: first_string(root, &["email", "accountEmail", "account.email"]),
         plan_type: first_string(root, &["planType", "plan_type", "plan"]),
     }
 }
@@ -33,67 +28,24 @@ pub fn parse_rate_limits(value: &Value) -> ParsedRateLimits {
     let mut windows = collect_rate_limit_windows(root);
     let mut five_hour = None;
     let mut weekly = None;
-    let mut other_windows = Vec::new();
 
     for window in windows.drain(..) {
-        match window.label.as_str() {
+        match window.name.as_str() {
             "5h" if five_hour.is_none() => five_hour = Some(window),
-            "1w" if weekly.is_none() => weekly = Some(window),
-            _ => other_windows.push(window),
+            "weekly" if weekly.is_none() => weekly = Some(window),
+            _ => {}
         }
     }
 
     ParsedRateLimits {
         five_hour,
         weekly,
-        other_windows,
-        available_reset_credits: root
-            .pointer("/rateLimitResetCredits/availableCount")
-            .and_then(value_to_i64),
+        credits: root
+            .get("rateLimitResetCredits")
+            .map(parse_reset_credits)
+            .or_else(|| root.get("credits").map(parse_reset_credits)),
         plan_type: first_string(root, &["planType", "plan_type"]),
-        credits: root.get("credits").cloned(),
         rate_limit_reached_type: first_string(root, &["rateLimitReachedType"]),
-    }
-}
-
-pub fn parse_usage(value: &Value) -> TokenUsage {
-    let root = value.get("result").unwrap_or(value);
-    let summary = root.get("summary").unwrap_or(root);
-    let today = Local::now().date_naive();
-    let week_start = today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
-    let mut today_tokens = None;
-    let mut week_tokens = 0_i64;
-    let mut has_week_tokens = false;
-
-    if let Some(buckets) = root.get("dailyUsageBuckets").and_then(Value::as_array) {
-        for bucket in buckets {
-            let Some(date) = bucket
-                .get("startDate")
-                .and_then(Value::as_str)
-                .and_then(parse_date)
-            else {
-                continue;
-            };
-            let Some(tokens) = bucket.get("tokens").and_then(value_to_i64) else {
-                continue;
-            };
-
-            if date == today {
-                today_tokens = Some(tokens);
-            }
-
-            if date >= week_start && date <= today {
-                week_tokens += tokens;
-                has_week_tokens = true;
-            }
-        }
-    }
-
-    TokenUsage {
-        today_tokens,
-        week_tokens: has_week_tokens.then_some(week_tokens),
-        lifetime_tokens: summary.get("lifetimeTokens").and_then(value_to_i64),
-        peak_daily_tokens: summary.get("peakDailyTokens").and_then(value_to_i64),
     }
 }
 
@@ -159,43 +111,45 @@ fn collect_windows_from_value(value: &Value, output: &mut Vec<UsageWindow>) {
 
 fn parse_usage_window(value: &Value) -> Option<UsageWindow> {
     let window_duration_mins = value.get("windowDurationMins").and_then(value_to_i64);
+    let window_duration_seconds = window_duration_mins.map(|mins| mins * 60);
     let used_percent = value.get("usedPercent").and_then(value_to_f64);
-    let resets_at = value.get("resetsAt").and_then(value_to_i64);
+    let reset_at = value.get("resetsAt").and_then(value_to_i64);
     let remaining_percent = used_percent.map(|used| (100.0 - used).clamp(0.0, 100.0));
 
-    if window_duration_mins.is_none() && used_percent.is_none() && resets_at.is_none() {
+    if window_duration_mins.is_none() && used_percent.is_none() && reset_at.is_none() {
         return None;
     }
 
     Some(UsageWindow {
-        label: label_for_duration(window_duration_mins).to_string(),
+        name: label_for_duration(window_duration_mins).to_string(),
         used_percent,
         remaining_percent,
-        window_duration_mins,
-        resets_at,
-        reset_remaining_text: resets_at.map(format_reset_remaining),
+        reset_at,
+        window_duration_seconds,
     })
 }
 
 fn label_for_duration(duration: Option<i64>) -> &'static str {
     match duration {
         Some(240..=360) => "5h",
-        Some(9000..=11000) => "1w",
+        Some(9000..=11000) => "weekly",
         _ => "other",
     }
 }
 
-fn format_reset_remaining(resets_at: i64) -> String {
-    let now = Local::now().timestamp();
-    let remaining = (resets_at - now).max(0);
-    let days = remaining / 86_400;
-    let hours = (remaining % 86_400) / 3_600;
-    let mins = (remaining % 3_600) / 60;
-
-    if days > 0 {
-        format!("{days}d {hours:02}h")
-    } else {
-        format!("{hours:02}:{mins:02}")
+fn parse_reset_credits(value: &Value) -> UsageCredits {
+    UsageCredits {
+        remaining: value.get("remaining").and_then(value_to_i64),
+        available_count: value.get("availableCount").and_then(value_to_i64),
+        reset_credits: value
+            .get("availableCount")
+            .or_else(|| value.get("resetCredits"))
+            .and_then(value_to_i64),
+        reset_at: value
+            .get("resetAt")
+            .or_else(|| value.get("resetsAt"))
+            .and_then(value_to_i64),
+        items: Vec::new(),
     }
 }
 
@@ -226,10 +180,6 @@ fn value_to_f64(value: &Value) -> Option<f64> {
         .or_else(|| value.as_i64().map(|item| item as f64))
 }
 
-fn parse_date(value: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(&value[..value.len().min(10)], "%Y-%m-%d").ok()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,7 +202,7 @@ mod tests {
 
         assert_eq!(parsed.five_hour.unwrap().used_percent, Some(42.0));
         assert_eq!(parsed.weekly.unwrap().used_percent, Some(17.0));
-        assert_eq!(parsed.available_reset_credits, Some(2));
+        assert_eq!(parsed.credits.unwrap().reset_credits, Some(2));
     }
 
     #[test]
@@ -281,14 +231,5 @@ mod tests {
 
         assert_eq!(parsed.five_hour.unwrap().used_percent, Some(12.0));
         assert_eq!(parsed.weekly.unwrap().used_percent, Some(27.0));
-    }
-
-    #[test]
-    fn usage_missing_fields_stays_unknown() {
-        let usage = parse_usage(&json!({ "summary": {} }));
-
-        assert_eq!(usage.today_tokens, None);
-        assert_eq!(usage.week_tokens, None);
-        assert_eq!(usage.lifetime_tokens, None);
     }
 }

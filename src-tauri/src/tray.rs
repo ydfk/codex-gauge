@@ -4,55 +4,44 @@ use tauri::{
     AppHandle, Emitter, Manager,
 };
 
+use crate::codex::{CodexUsageSnapshot, SnapshotStatus};
+
+const TRAY_ID: &str = "codex-gauge-tray";
+
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let toggle = MenuItem::with_id(app, "toggle", "打开 / 隐藏浮窗", true, None::<&str>)?;
+    let toggle = MenuItem::with_id(app, "toggle", "打开/隐藏浮窗", true, None::<&str>)?;
+    let always_on_top = MenuItem::with_id(
+        app,
+        "always_on_top",
+        "固定/取消固定在最上层",
+        true,
+        None::<&str>,
+    )?;
     let refresh = MenuItem::with_id(app, "refresh", "刷新", true, None::<&str>)?;
-    let lock_position = MenuItem::with_id(app, "lock_position", "锁定位置", true, None::<&str>)?;
-    let start_on_boot = MenuItem::with_id(app, "start_on_boot", "开机启动", true, None::<&str>)?;
-    let auto_update = MenuItem::with_id(app, "auto_update", "自动更新", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "打开设置", true, None::<&str>)?;
-    let login = MenuItem::with_id(app, "login", "打开 Codex 登录", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
 
-    let menu = Menu::with_items(
-        app,
-        &[
-            &toggle,
-            &refresh,
-            &lock_position,
-            &start_on_boot,
-            &auto_update,
-            &settings,
-            &login,
-            &quit,
-        ],
-    )?;
+    let menu = Menu::with_items(app, &[&toggle, &always_on_top, &refresh, &settings, &quit])?;
 
     let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
         tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).expect("tray icon")
     });
 
-    TrayIconBuilder::with_id("codex-gauge-tray")
-        .tooltip("Codex Gauge\n5h 未知 · 1w 未知 · R未知")
+    TrayIconBuilder::with_id(TRAY_ID)
+        .tooltip(default_tooltip())
         .icon(icon)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id.as_ref() {
-            "toggle" | "settings" => toggle_window(app),
+            "toggle" => toggle_window(app),
+            "always_on_top" => {
+                let _ = app.emit("codex-gauge-toggle-always-on-top", ());
+            }
             "refresh" => {
                 let _ = app.emit("codex-gauge-refresh", ());
             }
-            "lock_position" => {
-                let _ = app.emit("codex-gauge-toggle-lock", ());
-            }
-            "start_on_boot" => {
-                let _ = app.emit("codex-gauge-toggle-start-on-boot", ());
-            }
-            "auto_update" => {
-                let _ = app.emit("codex-gauge-toggle-auto-update", ());
-            }
-            "login" => {
-                let _ = app.emit("codex-gauge-open-login", ());
+            "settings" => {
+                open_settings(app);
             }
             "quit" => app.exit(0),
             _ => {}
@@ -64,12 +53,18 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                 ..
             } = event
             {
-                toggle_window(tray.app_handle());
+                let _ = tray.app_handle();
             }
         })
         .build(app)?;
 
     Ok(())
+}
+
+pub fn update_tooltip(app: &AppHandle, snapshot: &CodexUsageSnapshot) {
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        let _ = tray.set_tooltip(Some(snapshot_tooltip(snapshot)));
+    }
 }
 
 fn toggle_window(app: &AppHandle) {
@@ -80,5 +75,63 @@ fn toggle_window(app: &AppHandle) {
             let _ = window.show();
             let _ = window.set_focus();
         }
+    }
+}
+
+fn open_settings(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_size(crate::window::main_window_size(true));
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = app.emit("codex-gauge-open-settings", ());
+    }
+}
+
+fn default_tooltip() -> &'static str {
+    "Codex Gauge\n5h 未知 · 7d 未知\n重置次数: 未知"
+}
+
+fn snapshot_tooltip(snapshot: &CodexUsageSnapshot) -> String {
+    format!(
+        "Codex Gauge\n5h 剩余 {} · 已用 {} · 重置 {}\n7d 剩余 {} · 已用 {} · 重置 {}\n重置次数: {} · {}",
+        percent(snapshot.primary_window.as_ref().and_then(|window| window.remaining_percent)),
+        percent(snapshot.primary_window.as_ref().and_then(|window| window.used_percent)),
+        compact_time(snapshot.primary_window.as_ref().and_then(|window| window.reset_at)),
+        percent(snapshot.secondary_window.as_ref().and_then(|window| window.remaining_percent)),
+        percent(snapshot.secondary_window.as_ref().and_then(|window| window.used_percent)),
+        compact_time(snapshot.secondary_window.as_ref().and_then(|window| window.reset_at)),
+        snapshot
+            .credits
+            .as_ref()
+            .and_then(|credits| credits.available_count.or(credits.reset_credits))
+            .map(|count| count.to_string())
+            .unwrap_or_else(|| "未知".to_string()),
+        status_text(&snapshot.status),
+    )
+}
+
+fn percent(value: Option<f64>) -> String {
+    value
+        .map(|item| format!("{}%", item.round()))
+        .unwrap_or_else(|| "未知".to_string())
+}
+
+fn compact_time(value: Option<i64>) -> String {
+    value
+        .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0))
+        .map(|time| {
+            time.with_timezone(&chrono::Local)
+                .format("%m-%d %H:%M")
+                .to_string()
+        })
+        .unwrap_or_else(|| "未知".to_string())
+}
+
+fn status_text(status: &SnapshotStatus) -> &'static str {
+    match status {
+        SnapshotStatus::Ok => "正常",
+        SnapshotStatus::NotLoggedIn => "未登录",
+        SnapshotStatus::InvalidAuth => "凭据失效",
+        SnapshotStatus::RequestFailed => "查询失败",
     }
 }
