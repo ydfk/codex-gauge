@@ -49,6 +49,7 @@ pnpm dev:desktop
 pnpm dev              # 仅启动 Vite 前端
 pnpm build            # 前端类型检查与构建
 pnpm check            # 前端 + Rust fmt/check/test
+pnpm release:check    # 发布流水线轻量检查
 pnpm rust:check       # Rust fmt/check/test
 pnpm rust:fmt         # 格式化 Rust
 pnpm tauri:dev        # 启动桌面应用
@@ -105,6 +106,8 @@ git push origin v0.1.0
 - Repository variable: `TAURI_UPDATER_PUBKEY`
 - Repository secret: `TAURI_SIGNING_PRIVATE_KEY`
 - Repository secret: `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，如果私钥设置了密码
+
+`TAURI_UPDATER_PUBKEY` 推荐配置在 Repository variables；如果误配置在 Repository secrets，CI 也会读取同名 secret 作为兼容兜底。
 
 生成 updater 密钥：
 

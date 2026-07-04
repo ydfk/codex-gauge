@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "typecheck": "svelte-check",
     "build": "svelte-check && vite build",
     "check": "pnpm build && pnpm rust:check",
+    "release:check": "pnpm typecheck && cd src-tauri && cargo fmt --check",
     "rust:check": "cd src-tauri && cargo fmt --check && cargo check && cargo test",
     "rust:fmt": "cd src-tauri && cargo fmt",
     "preview": "vite preview --host 127.0.0.1",

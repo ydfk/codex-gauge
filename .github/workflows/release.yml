@@ -54,13 +54,23 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-x64-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-x64-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Prepare release config
         shell: pwsh
         env:
-          TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+          TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY || secrets.TAURI_UPDATER_PUBKEY }}
         run: |
           pnpm version:sync "${{ steps.meta.outputs.tag }}"
 
@@ -78,13 +88,19 @@ jobs:
             Write-Host "Updater artifacts enabled."
           } else {
             $config.bundle.createUpdaterArtifacts = $false
+            if (-not $hasUpdaterPubkey) {
+              Write-Warning "TAURI_UPDATER_PUBKEY is empty; configure it as a repository variable or secret."
+            }
+            if (-not $hasSigningKey) {
+              Write-Warning "TAURI_SIGNING_PRIVATE_KEY is empty; configure it as a repository secret."
+            }
             Write-Warning "Updater signing is not configured; release will skip latest.json and signature artifacts."
           }
 
           $config | ConvertTo-Json -Depth 20 | Set-Content $configPath -Encoding utf8
 
-      - name: Check
-        run: pnpm check
+      - name: Fast release check
+        run: pnpm release:check
 
       - name: Build Windows x64 bundles
         run: pnpm tauri build --target x86_64-pc-windows-msvc

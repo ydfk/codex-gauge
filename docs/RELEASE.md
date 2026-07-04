@@ -38,6 +38,8 @@ git push origin v0.1.0
 - Repository secret: `TAURI_SIGNING_PRIVATE_KEY`
 - Repository secret: `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，如果私钥有密码
 
+`TAURI_UPDATER_PUBKEY` 推荐放在 Repository variables。若放在 Repository secrets，当前 CI 也会读取同名 secret 作为兜底。
+
 正式发布前需要：
 
 1. 生成 Tauri updater 签名密钥。
