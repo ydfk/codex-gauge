@@ -59,23 +59,28 @@ jobs:
 
       - name: Prepare release config
         shell: pwsh
+        env:
+          TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
         run: |
-          if (-not "${{ vars.TAURI_UPDATER_PUBKEY }}") {
-            throw "Repository variable TAURI_UPDATER_PUBKEY is required"
-          }
-          if (-not "$env:TAURI_SIGNING_PRIVATE_KEY") {
-            throw "Secret TAURI_SIGNING_PRIVATE_KEY is required"
-          }
-
           pnpm version:sync "${{ steps.meta.outputs.tag }}"
 
           $configPath = "src-tauri/tauri.conf.json"
           $config = Get-Content $configPath -Raw | ConvertFrom-Json
-          $config.bundle.createUpdaterArtifacts = $true
-          $config.plugins.updater.pubkey = "${{ vars.TAURI_UPDATER_PUBKEY }}"
           $config.plugins.updater.endpoints = @(
             "https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
           )
+
+          $hasUpdaterPubkey = -not [string]::IsNullOrWhiteSpace($env:TAURI_UPDATER_PUBKEY)
+          $hasSigningKey = -not [string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)
+          if ($hasUpdaterPubkey -and $hasSigningKey) {
+            $config.bundle.createUpdaterArtifacts = $true
+            $config.plugins.updater.pubkey = $env:TAURI_UPDATER_PUBKEY
+            Write-Host "Updater artifacts enabled."
+          } else {
+            $config.bundle.createUpdaterArtifacts = $false
+            Write-Warning "Updater signing is not configured; release will skip latest.json and signature artifacts."
+          }
+
           $config | ConvertTo-Json -Depth 20 | Set-Content $configPath -Encoding utf8
 
       - name: Check

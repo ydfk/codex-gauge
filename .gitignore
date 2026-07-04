@@ -14,3 +14,5 @@ plan.md
 .vscode/
 .idea/
 .history/
+updater.key
+updater.key.pub

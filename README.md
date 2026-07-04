@@ -100,7 +100,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-发布前需要在 GitHub 仓库中配置：
+如果只需要生成安装包，可以直接推送 tag。若需要应用内“检查更新/安装更新”生成可用的 `latest.json` 和签名文件，需要在 GitHub 仓库中配置：
 
 - Repository variable: `TAURI_UPDATER_PUBKEY`
 - Repository secret: `TAURI_SIGNING_PRIVATE_KEY`
@@ -118,11 +118,11 @@ pnpm tauri signer generate --write-keys updater.key
 https://github.com/liyuhang/codex-gauge/releases/latest/download/latest.json
 ```
 
-如果你的 GitHub 仓库不是 `liyuhang/codex-gauge`，请在源码中替换该 endpoint；CI 发布时会自动改为当前 `${{ github.repository }}`。
+如果你的 GitHub 仓库不是 `liyuhang/codex-gauge`，CI 发布时会自动把 endpoint 改为当前 `${{ github.repository }}`。没有配置 updater 公钥或签名私钥时，CI 会跳过 `latest.json` 和签名文件，但仍会发布 Windows x64 安装包。
 
 ## Update Flow
 
-应用设置页提供“检查更新”和“安装更新”。客户端会读取 GitHub Releases 最新 release 下的 `latest.json`，下载并验证签名后的 Windows x64 安装包。
+应用设置页提供“检查更新”和“安装更新”。配置 updater 签名后，客户端会读取 GitHub Releases 最新 release 下的 `latest.json`，下载并验证签名后的 Windows x64 安装包。
 
 ## Build Artifacts
 

@@ -32,7 +32,7 @@ git push origin v0.1.0
 
 ## Updater
 
-应用通过 GitHub Release 的 `latest.json` 检测最新版本。发布前需要在 GitHub 仓库配置：
+应用通过 GitHub Release 的 `latest.json` 检测最新版本。只生成安装包时不需要 updater 配置；需要应用内更新时，需要在 GitHub 仓库配置：
 
 - Repository variable: `TAURI_UPDATER_PUBKEY`
 - Repository secret: `TAURI_SIGNING_PRIVATE_KEY`
@@ -49,4 +49,4 @@ git push origin v0.1.0
 
 不要把私钥提交到仓库。
 
-本地默认 `createUpdaterArtifacts = false`，用于避免没有签名私钥时普通构建失败。
+本地默认 `createUpdaterArtifacts = false`，用于避免没有签名私钥时普通构建失败。CI 也会在缺少 `TAURI_UPDATER_PUBKEY` 或 `TAURI_SIGNING_PRIVATE_KEY` 时跳过 `latest.json` 和签名文件，只发布 Windows x64 安装包。
