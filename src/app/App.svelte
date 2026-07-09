@@ -17,13 +17,14 @@
     saveConfig,
     setTopContextMenu,
     setWindowMode,
+    showWindow,
+    hideWindow,
+    toggleWindowVisible,
   } from "../lib/api";
   import type { AppConfig, CodexUsageSnapshot, UpdateCheckResult } from "../lib/types";
 
   let snapshot: CodexUsageSnapshot | null = null;
   let config: AppConfig | null = null;
-  let expanded = false;
-  let settingsOpen = false;
   let message = "";
   let updateStatus: UpdateCheckResult | null = null;
   let refreshTimer: number | null = null;
@@ -33,13 +34,15 @@
   const currentWindow = getCurrentWindow();
   const windowLabel = currentWindow.label;
   const isTopWindow = windowLabel === "top";
+  const isMainWindow = windowLabel === "main";
+  const isDetailWindow = windowLabel === "detail";
+  const isSettingsWindow = windowLabel === "settings";
 
   onMount(() => {
     void bootstrap();
 
     const unlisteners = [
       listen("codex-gauge-refresh", () => void refresh()),
-      listen("codex-gauge-open-settings", () => void openSettingsPanel()),
       listen("codex-gauge-toggle-always-on-top", () => void toggleAlwaysOnTop()),
       listen("codex-gauge-toggle-lock", () => void toggleLockPosition()),
       listen("codex-gauge-toggle-start-on-boot", () => void toggleStartOnBoot()),
@@ -47,6 +50,7 @@
       listen("codex-gauge-open-login", () => void openCodexLogin()),
       listen("codex-gauge-check-update", () => void checkForUpdate(false)),
       listen("codex-gauge-install-update", () => void installAvailableUpdate()),
+      listen("codex-gauge-config-updated", () => void reloadConfig()),
     ];
 
     return () => {
@@ -59,9 +63,9 @@
   async function bootstrap() {
     try {
       config = await getConfig();
-      if (!isTopWindow) await setWindowMode(false);
+      if (isMainWindow) await setWindowMode(false);
       await refresh();
-      if (!isTopWindow && config.update.autoCheck) void checkForUpdate(true);
+      if (isMainWindow && config.update.autoCheck) void checkForUpdate(true);
       scheduleRefresh();
       scheduleOledShift();
     } catch {
@@ -79,7 +83,7 @@
   }
 
   async function checkForUpdate(silent: boolean) {
-    if (isTopWindow) return;
+    if (isTopWindow || isDetailWindow) return;
     try {
       if (!silent) message = "检查更新中";
       updateStatus = await checkUpdate();
@@ -90,7 +94,7 @@
   }
 
   async function installAvailableUpdate() {
-    if (isTopWindow) return;
+    if (isTopWindow || isDetailWindow) return;
     try {
       message = "安装更新中";
       updateStatus = await installUpdate();
@@ -112,6 +116,12 @@
     scheduleOledShift();
   }
 
+  async function reloadConfig() {
+    config = await getConfig();
+    scheduleRefresh();
+    scheduleOledShift();
+  }
+
   async function toggleLockPosition() {
     if (!config) return;
     await updateConfig({
@@ -124,7 +134,7 @@
     if (!config) return;
     await updateConfig({
       ...config,
-      general: { ...config.general, alwaysOnTop: !config.general.alwaysOnTop },
+      general: { ...config.general, mainAlwaysOnTop: !config.general.mainAlwaysOnTop },
     });
   }
 
@@ -144,28 +154,18 @@
     });
   }
 
-  async function toggleExpanded() {
-    expanded = !expanded;
-    settingsOpen = false;
-    await setWindowMode(expanded);
+  async function openDetailWindow() {
+    await toggleWindowVisible("detail");
   }
 
-  async function openSettingsPanel() {
-    expanded = true;
-    settingsOpen = true;
-    await setWindowMode(true);
-  }
-
-  async function collapsePanel() {
-    expanded = false;
-    settingsOpen = false;
-    await setWindowMode(false);
+  async function openSettingsWindow() {
+    await showWindow("settings");
   }
 
   function scheduleOledShift() {
     if (oledTimer) window.clearInterval(oledTimer);
     oledTimer = null;
-    if (!config?.general.oledShiftEnabled) return;
+    if (!isMainWindow || !config?.general.oledShiftEnabled) return;
 
     oledTimer = window.setInterval(() => void nudgeWindow(), 180_000);
   }
@@ -207,9 +207,8 @@
   }
 
   async function closeCurrentWindow() {
-    contextMenu = null;
-    if (isTopWindow) await setTopContextMenu(false);
-    await currentWindow.hide();
+    closeContextMenu();
+    await hideWindow(windowLabel);
   }
 
   function closeContextMenu() {
@@ -219,39 +218,38 @@
 </script>
 
 <main
-  class:expanded
   class:top-window={isTopWindow}
   class:context-open={!!contextMenu}
-  class:settings-open={settingsOpen}
+  class:panel-window={isDetailWindow || isSettingsWindow}
+  class:settings-window={isSettingsWindow}
   style={`--panel-opacity: ${config?.general.opacity ?? 0.92}`}
   onpointerdown={closeContextMenu}
+  oncontextmenu={openContextMenu}
 >
   {#if isTopWindow}
     <TopStatusWidget {snapshot} onmenu={openContextMenu} />
-  {:else if expanded}
-    {#if settingsOpen}
-      <SettingsPanel
-        {config}
-        {updateStatus}
-        onsave={(nextConfig) => updateConfig(nextConfig)}
-        oncheckupdate={() => void checkForUpdate(false)}
-        oninstallupdate={() => void installAvailableUpdate()}
-        onback={() => (settingsOpen = false)}
-      />
-    {:else}
-      <DetailPanel
-        {snapshot}
-        onsettings={() => (settingsOpen = true)}
-        onrefresh={() => refresh()}
-        onlogin={() => openCodexLogin()}
-        onclose={() => void collapsePanel()}
-      />
-    {/if}
+  {:else if isDetailWindow}
+    <DetailPanel
+      {snapshot}
+      onsettings={() => void openSettingsWindow()}
+      onrefresh={() => refresh()}
+      onlogin={() => openCodexLogin()}
+      onclose={() => void hideWindow("detail")}
+    />
+  {:else if isSettingsWindow}
+    <SettingsPanel
+      {config}
+      {updateStatus}
+      onsave={(nextConfig) => updateConfig(nextConfig)}
+      oncheckupdate={() => void checkForUpdate(false)}
+      oninstallupdate={() => void installAvailableUpdate()}
+      onback={() => void hideWindow("settings")}
+    />
   {:else}
     <FloatingWidget
       {snapshot}
       {message}
-      onopen={() => void toggleExpanded()}
+      onopen={() => void openDetailWindow()}
       onmenu={openContextMenu}
     />
   {/if}

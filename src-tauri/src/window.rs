@@ -42,7 +42,7 @@ pub fn setup_main_window(app: &AppHandle) -> tauri::Result<()> {
 
     window.set_size(main_window_size(false))?;
     let _ = window.set_shadow(false);
-    window.set_always_on_top(config.general.always_on_top)?;
+    window.set_always_on_top(config.general.main_always_on_top)?;
     place_main_window(&window, config.window.x, config.window.y);
     if !config.general.show_on_startup {
         let _ = window.hide();
@@ -76,7 +76,7 @@ pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
 
     window.set_size(top_window_size(false))?;
     let _ = window.set_shadow(false);
-    window.set_always_on_top(true)?;
+    window.set_always_on_top(config.general.top_always_on_top)?;
     place_top_window(&window);
     if !config.general.top_status_enabled {
         let _ = window.hide();
@@ -91,6 +91,23 @@ pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
     });
 
     Ok(())
+}
+
+pub fn setup_panel_windows(app: &AppHandle) {
+    for label in ["detail", "settings"] {
+        let Some(window) = app.get_webview_window(label) else {
+            continue;
+        };
+        let _ = window.set_shadow(false);
+
+        let panel = window.clone();
+        window.on_window_event(move |event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = panel.hide();
+            }
+        });
+    }
 }
 
 fn place_main_window(window: &WebviewWindow, x: Option<i32>, y: Option<i32>) {

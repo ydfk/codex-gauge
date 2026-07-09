@@ -18,6 +18,7 @@
   export let onclose: () => void;
 
   let dragStart: { x: number; y: number; dragging: boolean } | null = null;
+  let dragging = false;
 
   function handlePointerDown(event: PointerEvent) {
     if (event.button !== 0 || (event.target as HTMLElement).closest("button, input")) return;
@@ -30,11 +31,16 @@
     if (moved < 6) return;
 
     dragStart.dragging = true;
-    void getCurrentWindow().startDragging();
+    dragging = true;
+    void getCurrentWindow().startDragging().finally(() => {
+      dragging = false;
+      dragStart = null;
+    });
   }
 
   function handlePointerUp() {
     dragStart = null;
+    dragging = false;
   }
 
   function handleDoubleClick(event: MouseEvent) {
@@ -45,6 +51,7 @@
 
 <section
   class="detail-panel"
+  class:dragging
   role="presentation"
   onpointerdown={handlePointerDown}
   onpointermove={handlePointerMove}
@@ -75,9 +82,9 @@
           <path d="M12 3v3m0 12v3m7.8-13.5-2.6 1.5M6.8 15l-2.6 1.5m15.6 0-2.6-1.5M6.8 9 4.2 7.5M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
         </svg>
       </button>
-      <button type="button" aria-label="返回小窗" title="返回" onclick={onclose}>
+      <button type="button" aria-label="关闭详情" title="关闭" onclick={onclose}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M19 12H5m6-6-6 6 6 6" />
+          <path d="M6 6l12 12M18 6 6 18" />
         </svg>
       </button>
     </div>

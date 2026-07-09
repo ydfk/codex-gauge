@@ -118,6 +118,43 @@ impl AppState {
     fn set_update_status(&self, status: updater::UpdateCheckResult) {
         *self.update_status.lock().expect("update status mutex") = Some(status);
     }
+
+    pub(crate) fn current_update_status(&self) -> Option<updater::UpdateCheckResult> {
+        self.update_status
+            .lock()
+            .expect("update status mutex")
+            .clone()
+    }
+
+    pub(crate) fn always_on_top_enabled(&self, target: WindowPinTarget) -> bool {
+        let config = self.config.lock().expect("config mutex");
+        match target {
+            WindowPinTarget::Main => config.general.main_always_on_top,
+            WindowPinTarget::Top => config.general.top_always_on_top,
+        }
+    }
+
+    pub(crate) fn toggle_always_on_top(&self, target: WindowPinTarget) -> bool {
+        let mut config = self.config.lock().expect("config mutex");
+        let enabled = match target {
+            WindowPinTarget::Main => {
+                config.general.main_always_on_top = !config.general.main_always_on_top;
+                config.general.main_always_on_top
+            }
+            WindowPinTarget::Top => {
+                config.general.top_always_on_top = !config.general.top_always_on_top;
+                config.general.top_always_on_top
+            }
+        };
+        self.storage.save_config(&config);
+        enabled
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum WindowPinTarget {
+    Main,
+    Top,
 }
 
 #[tauri::command]
@@ -152,10 +189,10 @@ fn save_config(
     }
 
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_always_on_top(config.general.always_on_top);
+        let _ = window.set_always_on_top(config.general.main_always_on_top);
     }
     if let Some(window) = app.get_webview_window("top") {
-        let _ = window.set_always_on_top(true);
+        let _ = window.set_always_on_top(config.general.top_always_on_top);
         if config.general.top_status_enabled {
             let _ = window.show();
         } else {
@@ -163,6 +200,7 @@ fn save_config(
         }
     }
     let _ = autostart::apply_start_on_boot(config.general.start_on_boot);
+    tray::update_menu(&app);
 
     Ok(config)
 }
@@ -205,7 +243,9 @@ fn show_main_window(app: AppHandle) -> Result<(), String> {
         .get_webview_window("main")
         .ok_or_else(|| "主窗口不存在".to_string())?;
     window.show().map_err(|err| err.to_string())?;
-    window.set_focus().map_err(|err| err.to_string())
+    window.set_focus().map_err(|err| err.to_string())?;
+    tray::update_menu(&app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -213,7 +253,9 @@ fn hide_main_window(app: AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "主窗口不存在".to_string())?;
-    window.hide().map_err(|err| err.to_string())
+    window.hide().map_err(|err| err.to_string())?;
+    tray::update_menu(&app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -237,6 +279,52 @@ fn set_top_context_menu(open: bool, app: AppHandle) -> Result<(), String> {
         .set_size(crate::window::top_window_size(open))
         .map_err(|err| err.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+fn show_window(label: String, app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| "窗口不存在".to_string())?;
+    window.show().map_err(|err| err.to_string())?;
+    window.set_focus().map_err(|err| err.to_string())?;
+    tray::update_menu(&app);
+    Ok(())
+}
+
+#[tauri::command]
+fn hide_window(label: String, app: AppHandle) -> Result<(), String> {
+    if label == "top" {
+        let _ = set_top_context_menu(false, app.clone());
+    }
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| "窗口不存在".to_string())?;
+    window.hide().map_err(|err| err.to_string())?;
+    tray::update_menu(&app);
+    Ok(())
+}
+
+#[tauri::command]
+fn toggle_window_visible(label: String, app: AppHandle) -> Result<bool, String> {
+    if label == "top" {
+        let _ = set_top_context_menu(false, app.clone());
+    }
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| "窗口不存在".to_string())?;
+
+    let visible = window.is_visible().map_err(|err| err.to_string())?;
+    if visible {
+        window.hide().map_err(|err| err.to_string())?;
+        tray::update_menu(&app);
+        return Ok(false);
+    }
+
+    window.show().map_err(|err| err.to_string())?;
+    window.set_focus().map_err(|err| err.to_string())?;
+    tray::update_menu(&app);
+    Ok(true)
 }
 
 #[tauri::command]
@@ -299,11 +387,15 @@ pub fn run() {
             hide_main_window,
             set_window_mode,
             set_top_context_menu,
+            show_window,
+            hide_window,
+            toggle_window_visible,
             quit_app
         ])
         .setup(|app| {
             window::setup_main_window(app.handle())?;
             window::setup_top_window(app.handle())?;
+            window::setup_panel_windows(app.handle());
             tray::setup_tray(app.handle())?;
             Ok(())
         })

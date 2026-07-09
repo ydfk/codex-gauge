@@ -15,7 +15,12 @@ pub struct AppConfig {
 pub struct GeneralConfig {
     pub start_on_boot: bool,
     pub show_on_startup: bool,
+    #[serde(default)]
     pub always_on_top: bool,
+    #[serde(default)]
+    pub main_always_on_top: bool,
+    #[serde(default)]
+    pub top_always_on_top: bool,
     pub lock_position: bool,
     #[serde(default)]
     pub oled_shift_enabled: bool,
@@ -57,11 +62,13 @@ pub struct WindowConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            version: 2,
+            version: 4,
             general: GeneralConfig {
                 start_on_boot: false,
                 show_on_startup: true,
                 always_on_top: false,
+                main_always_on_top: false,
+                top_always_on_top: false,
                 lock_position: false,
                 oled_shift_enabled: false,
                 top_status_enabled: true,
@@ -102,6 +109,11 @@ impl AppConfig {
                 self.update.endpoint = default_update_endpoint();
             }
             self.version = 3;
+        }
+        if self.version < 4 {
+            self.general.main_always_on_top = self.general.always_on_top;
+            self.general.top_always_on_top = self.general.always_on_top;
+            self.version = 4;
         }
     }
 }

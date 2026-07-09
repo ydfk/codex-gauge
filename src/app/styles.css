@@ -74,6 +74,16 @@ main.top-window.context-open {
   min-height: 92px;
 }
 
+main.panel-window {
+  width: 460px;
+  min-height: 640px;
+}
+
+main.settings-window {
+  width: 620px;
+  min-height: 520px;
+}
+
 .floating-widget,
 .detail-panel,
 .settings-panel {
@@ -170,7 +180,7 @@ main.top-window.context-open {
   cursor: grab;
 }
 
-.top-status-widget:active {
+.top-status-widget.dragging {
   cursor: grabbing;
 }
 
@@ -248,7 +258,7 @@ main.top-window.context-open {
   text-align: left;
 }
 
-.widget-body:active {
+.widget-body.dragging {
   cursor: grabbing;
 }
 
@@ -262,9 +272,9 @@ main.top-window.context-open {
 
 .widget-top {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 22px;
   min-width: 0;
   padding-right: 0;
@@ -445,8 +455,8 @@ main.top-window.context-open {
 
 .credit-chip {
   justify-self: end;
-  min-width: 92px;
-  padding: 3px 9px;
+  min-width: 76px;
+  padding: 3px 8px;
   border: 1px solid rgba(132, 240, 206, 0.28);
   border-radius: 999px;
   background:
@@ -460,6 +470,24 @@ main.top-window.context-open {
   text-shadow: 0 1px 2px rgba(10, 16, 24, 0.34);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.detail-chip {
+  justify-self: end;
+  height: 22px;
+  min-width: 42px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.1)),
+    rgba(38, 52, 66, 0.16);
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 11px;
+  font-weight: 820;
+  line-height: 20px;
+  cursor: pointer;
+  text-shadow: 0 1px 2px rgba(10, 16, 24, 0.34);
 }
 
 .panel-actions button,
@@ -567,15 +595,23 @@ main.top-window.context-open {
 }
 
 .settings-panel {
-  overflow-y: auto;
+  width: 620px;
+  height: 520px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  cursor: grab;
   scrollbar-width: thin;
+}
+
+.settings-panel.dragging {
+  cursor: grabbing;
 }
 
 .detail-panel {
   cursor: grab;
 }
 
-.detail-panel:active {
+.detail-panel.dragging {
   cursor: grabbing;
 }
 
@@ -878,7 +914,22 @@ h1 {
 }
 
 .settings-panel h1 {
-  font-size: 24px;
+  font-size: 22px;
+}
+
+.settings-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.settings-stack {
+  display: grid;
+  align-content: start;
+  gap: 12px;
 }
 
 .settings-section {
@@ -886,8 +937,8 @@ h1 {
   z-index: 2;
   display: grid;
   gap: 0;
-  margin-top: 12px;
-  padding: 10px 12px 4px;
+  min-width: 0;
+  padding: 9px 12px 4px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.06);
@@ -910,7 +961,8 @@ h1 {
   grid-template-columns: 1fr 128px;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
+  min-width: 0;
+  padding: 7px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -922,7 +974,7 @@ h1 {
 .settings-panel input[type="number"],
 .settings-panel input[type="text"],
 .settings-panel select {
-  width: 128px;
+  width: 124px;
   padding: 6px 9px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
@@ -945,7 +997,7 @@ h1 {
 }
 
 .settings-panel input[type="range"] {
-  width: 128px;
+  width: 124px;
   accent-color: var(--accent);
 }
 
@@ -958,6 +1010,7 @@ h1 {
 
 .update-box {
   grid-template-columns: 1fr auto;
+  gap: 8px;
   border-bottom: 0;
 }
 

@@ -18,6 +18,7 @@
     : statusText(snapshot);
 
   let dragStart: { x: number; y: number; dragging: boolean } | null = null;
+  let dragging = false;
 
   function barWidth(value: number | null | undefined) {
     return `${Math.max(0, Math.min(100, value ?? 0))}%`;
@@ -44,16 +45,26 @@
     if (moved < 6) return;
 
     dragStart.dragging = true;
-    void getCurrentWindow().startDragging();
+    dragging = true;
+    void getCurrentWindow().startDragging().finally(() => {
+      dragging = false;
+      dragStart = null;
+    });
   }
 
   function handlePointerUp() {
     dragStart = null;
+    dragging = false;
   }
 
   function handleDoubleClick() {
     if (dragStart?.dragging) return;
     onopen();
+  }
+
+  function handleContextMenu(event: MouseEvent) {
+    event.stopPropagation();
+    onmenu(event);
   }
 </script>
 
@@ -61,18 +72,20 @@
   <div class="glass-refraction"></div>
   <div
     class="widget-body"
+    class:dragging
     role="presentation"
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}
     onpointerup={handlePointerUp}
     onpointercancel={handlePointerUp}
-    oncontextmenu={onmenu}
+    oncontextmenu={handleContextMenu}
     ondblclick={handleDoubleClick}
   >
     <header class="widget-top">
       <span class="brand">Codex</span>
       <span class="status-copy">{usedSummary}</span>
       <span class="credit-chip">重置次数: {resetCount}</span>
+      <button class="detail-chip" type="button" onclick={onopen}>详情</button>
     </header>
 
     <div class="usage-matrix">

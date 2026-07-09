@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PhysicalPosition } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { formatPercent, statusText } from "../lib/format";
   import type { CodexUsageSnapshot } from "../lib/types";
@@ -9,6 +10,17 @@
   $: resetCount = snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知";
   $: fiveHourTone = valueTone(snapshot?.primaryWindow?.remainingPercent);
   $: weeklyTone = valueTone(snapshot?.secondaryWindow?.remainingPercent);
+  let horizontalDrag:
+    | {
+        pointerId: number;
+        startScreenX: number;
+        windowX: number;
+        windowY: number;
+        nextX: number;
+        raf: number | null;
+      }
+    | null = null;
+  let dragging = false;
 
   function valueTone(value: number | null | undefined) {
     if (value == null) return "tone-muted";
@@ -20,21 +32,75 @@
     return "tone-full";
   }
 
-  function handlePointerDown(event: PointerEvent) {
+  async function handlePointerDown(event: PointerEvent) {
     if (event.button !== 0) return;
-    void getCurrentWindow().startDragging();
+    const target = event.currentTarget as HTMLElement;
+    let position: PhysicalPosition;
+    try {
+      target.setPointerCapture(event.pointerId);
+      position = await getCurrentWindow().outerPosition();
+    } catch {
+      dragging = false;
+      horizontalDrag = null;
+      return;
+    }
+    horizontalDrag = {
+      pointerId: event.pointerId,
+      startScreenX: event.screenX,
+      windowX: position.x,
+      windowY: position.y,
+      nextX: position.x,
+      raf: null,
+    };
+    dragging = true;
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    if (!horizontalDrag) return;
+    horizontalDrag.nextX = Math.round(
+      horizontalDrag.windowX + event.screenX - horizontalDrag.startScreenX,
+    );
+    if (horizontalDrag.raf != null) return;
+
+    horizontalDrag.raf = window.requestAnimationFrame(() => {
+      if (!horizontalDrag) return;
+      horizontalDrag.raf = null;
+      void getCurrentWindow().setPosition(
+        new PhysicalPosition(horizontalDrag.nextX, horizontalDrag.windowY),
+      );
+    });
+  }
+
+  function handlePointerEnd(event: PointerEvent) {
+    if (!horizontalDrag) return;
+    if (horizontalDrag.raf != null) window.cancelAnimationFrame(horizontalDrag.raf);
+    try {
+      (event.currentTarget as HTMLElement).releasePointerCapture(horizontalDrag.pointerId);
+    } catch {
+      // 指针可能已被系统释放，保持拖拽状态收尾即可。
+    }
+    horizontalDrag = null;
+    dragging = false;
+  }
+
+  function handleContextMenu(event: MouseEvent) {
+    event.stopPropagation();
+    onmenu(event);
   }
 </script>
 
 <section
   class="top-status-widget"
+  class:dragging
   role="presentation"
   title={statusText(snapshot)}
-  oncontextmenu={onmenu}
+  oncontextmenu={handleContextMenu}
   onpointerdown={handlePointerDown}
-  data-tauri-drag-region
+  onpointermove={handlePointerMove}
+  onpointerup={handlePointerEnd}
+  onpointercancel={handlePointerEnd}
 >
-  <strong class={fiveHourTone} data-tauri-drag-region>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
-  <span class={weeklyTone} data-tauri-drag-region>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>
-  <em data-tauri-drag-region>重置 {resetCount}</em>
+  <strong class={fiveHourTone}>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
+  <span class={weeklyTone}>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>
+  <em>重置 {resetCount}</em>
 </section>

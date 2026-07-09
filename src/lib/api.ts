@@ -49,6 +49,18 @@ export function setTopContextMenu(open: boolean) {
   return invoke<void>("set_top_context_menu", { open });
 }
 
+export function showWindow(label: string) {
+  return invoke<void>("show_window", { label });
+}
+
+export function hideWindow(label: string) {
+  return invoke<void>("hide_window", { label });
+}
+
+export function toggleWindowVisible(label: string) {
+  return invoke<boolean>("toggle_window_visible", { label });
+}
+
 export function quitApp() {
   return invoke<void>("quit_app");
 }

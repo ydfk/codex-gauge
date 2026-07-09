@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getCurrentWindow } from "@tauri-apps/api/window";
   import type { AppConfig, UpdateCheckResult } from "../lib/types";
 
   export let config: AppConfig | null = null;
@@ -9,116 +10,164 @@
   export let onback: () => void;
 
   $: draft = config ? structuredClone(config) : null;
+  let dragStart: { x: number; y: number; dragging: boolean } | null = null;
+  let dragging = false;
 
   function save() {
     if (draft) onsave(draft);
   }
+
+  function handlePointerDown(event: PointerEvent) {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button, input, select, textarea")) return;
+    dragStart = { x: event.clientX, y: event.clientY, dragging: false };
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    if (!dragStart || dragStart.dragging) return;
+    const moved = Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y);
+    if (moved < 6) return;
+
+    dragStart.dragging = true;
+    dragging = true;
+    void getCurrentWindow().startDragging().finally(() => {
+      dragging = false;
+      dragStart = null;
+    });
+  }
+
+  function handlePointerUp() {
+    dragStart = null;
+    dragging = false;
+  }
 </script>
 
-<section class="settings-panel">
+<section
+  class="settings-panel"
+  class:dragging
+  role="presentation"
+  onpointerdown={handlePointerDown}
+  onpointermove={handlePointerMove}
+  onpointerup={handlePointerUp}
+  onpointercancel={handlePointerUp}
+>
   <header>
     <div>
       <span class="eyebrow">设置</span>
       <h1>Codex Gauge</h1>
     </div>
-    <button type="button" onclick={onback}>返回</button>
+    <div class="panel-actions">
+      <button type="button" aria-label="关闭设置" title="关闭" onclick={onback}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+      </button>
+    </div>
   </header>
 
   {#if draft}
-    <div class="settings-section">
-      <span class="section-title">浮窗</span>
-      <label>
-        <span>刷新间隔</span>
-        <input
-          type="number"
-          min="30"
-          max="600"
-          bind:value={draft.general.refreshIntervalSeconds}
-          oninput={save}
-        />
-      </label>
+    <div class="settings-content">
+      <div class="settings-section">
+        <span class="section-title">浮窗</span>
+        <label>
+          <span>刷新间隔</span>
+          <input
+            type="number"
+            min="30"
+            max="600"
+            bind:value={draft.general.refreshIntervalSeconds}
+            oninput={save}
+          />
+        </label>
 
-      <label>
-        <span>透明度</span>
-        <input
-          type="range"
-          min="0.7"
-          max="1"
-          step="0.01"
-          bind:value={draft.general.opacity}
-          oninput={save}
-        />
-      </label>
+        <label>
+          <span>透明度</span>
+          <input
+            type="range"
+            min="0.7"
+            max="1"
+            step="0.01"
+            bind:value={draft.general.opacity}
+            oninput={save}
+          />
+        </label>
 
-      <label class="toggle">
-        <span>始终置顶</span>
-        <input type="checkbox" bind:checked={draft.general.alwaysOnTop} onchange={save} />
-      </label>
+        <label class="toggle">
+          <span>桌面浮窗置顶</span>
+          <input type="checkbox" bind:checked={draft.general.mainAlwaysOnTop} onchange={save} />
+        </label>
 
-      <label class="toggle">
-        <span>启动时显示桌面浮窗</span>
-        <input type="checkbox" bind:checked={draft.general.showOnStartup} onchange={save} />
-      </label>
+        <label class="toggle">
+          <span>顶部浮窗置顶</span>
+          <input type="checkbox" bind:checked={draft.general.topAlwaysOnTop} onchange={save} />
+        </label>
 
-      <label class="toggle">
-        <span>显示顶部小浮条</span>
-        <input type="checkbox" bind:checked={draft.general.topStatusEnabled} onchange={save} />
-      </label>
+        <label class="toggle">
+          <span>启动时显示桌面浮窗</span>
+          <input type="checkbox" bind:checked={draft.general.showOnStartup} onchange={save} />
+        </label>
 
-      <label class="toggle">
-        <span>防 OLED 烧屏微位移</span>
-        <input type="checkbox" bind:checked={draft.general.oledShiftEnabled} onchange={save} />
-      </label>
+        <label class="toggle">
+          <span>显示顶部小浮条</span>
+          <input type="checkbox" bind:checked={draft.general.topStatusEnabled} onchange={save} />
+        </label>
 
-      <label class="toggle">
-        <span>锁定位置</span>
-        <input type="checkbox" bind:checked={draft.general.lockPosition} onchange={save} />
-      </label>
+        <label class="toggle">
+          <span>防 OLED 烧屏微位移</span>
+          <input type="checkbox" bind:checked={draft.general.oledShiftEnabled} onchange={save} />
+        </label>
 
-      <label class="toggle">
-        <span>开机启动</span>
-        <input type="checkbox" bind:checked={draft.general.startOnBoot} onchange={save} />
-      </label>
-    </div>
+        <label class="toggle">
+          <span>锁定位置</span>
+          <input type="checkbox" bind:checked={draft.general.lockPosition} onchange={save} />
+        </label>
 
-    <div class="settings-section">
-      <span class="section-title">Codex</span>
-      <label>
-        <span>命令</span>
-        <input type="text" bind:value={draft.codex.command} oninput={save} />
-      </label>
+        <label class="toggle">
+          <span>开机启动</span>
+          <input type="checkbox" bind:checked={draft.general.startOnBoot} onchange={save} />
+        </label>
+      </div>
 
-      <label>
-        <span>优先查询方式</span>
-        <select bind:value={draft.codex.preferredProvider} onchange={save}>
-          <option value="app-server">app-server</option>
-          <option value="api">API</option>
-        </select>
-      </label>
-    </div>
+      <div class="settings-stack">
+        <div class="settings-section">
+          <span class="section-title">Codex</span>
+          <label>
+            <span>命令</span>
+            <input type="text" bind:value={draft.codex.command} oninput={save} />
+          </label>
 
-    <div class="settings-section">
-      <span class="section-title">更新</span>
-      <label class="toggle">
-        <span>启动时自动检查</span>
-        <input type="checkbox" bind:checked={draft.update.autoCheck} onchange={save} />
-      </label>
-
-      <label class="setting-wide">
-        <span>更新地址</span>
-        <input type="text" bind:value={draft.update.endpoint} onchange={save} />
-      </label>
-
-      <div class="update-box">
-        <div>
-          <strong>{updateStatus?.available ? "发现新版本" : "更新状态"}</strong>
-          <span>{updateStatus?.message ?? "尚未检查"}</span>
+          <label>
+            <span>优先查询方式</span>
+            <select bind:value={draft.codex.preferredProvider} onchange={save}>
+              <option value="app-server">app-server</option>
+              <option value="api">API</option>
+            </select>
+          </label>
         </div>
-        <div class="settings-actions">
-          <button type="button" onclick={oncheckupdate}>检查</button>
-          <button type="button" disabled={!updateStatus?.available} onclick={oninstallupdate}>
-            更新
-          </button>
+
+        <div class="settings-section">
+          <span class="section-title">更新</span>
+          <label class="toggle">
+            <span>启动时自动检查</span>
+            <input type="checkbox" bind:checked={draft.update.autoCheck} onchange={save} />
+          </label>
+
+          <label class="setting-wide">
+            <span>更新地址</span>
+            <input type="text" bind:value={draft.update.endpoint} onchange={save} />
+          </label>
+
+          <div class="update-box">
+            <div>
+              <strong>{updateStatus?.available ? "发现新版本" : "更新状态"}</strong>
+              <span>{updateStatus?.message ?? "尚未检查"}</span>
+            </div>
+            <div class="settings-actions">
+              <button type="button" onclick={oncheckupdate}>检查</button>
+              <button type="button" disabled={!updateStatus?.available} onclick={oninstallupdate}>
+                更新
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

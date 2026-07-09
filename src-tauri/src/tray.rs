@@ -6,6 +6,7 @@ use tauri::{
 
 use crate::codex::{CodexUsageSnapshot, SnapshotStatus};
 use crate::updater::UpdateCheckResult;
+use crate::{AppState, WindowPinTarget};
 
 const TRAY_ID: &str = "codex-gauge-tray";
 
@@ -23,20 +24,19 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id.as_ref() {
             "toggle" => toggle_window(app),
-            "always_on_top" => {
-                let _ = app.emit("codex-gauge-toggle-always-on-top", ());
-            }
+            "toggle_top" => toggle_top_window(app),
+            "detail" => toggle_named_window(app, "detail"),
+            "settings" => toggle_named_window(app, "settings"),
             "refresh" => {
                 let _ = app.emit("codex-gauge-refresh", ());
             }
+            "always_on_top_main" => toggle_always_on_top(app, WindowPinTarget::Main),
+            "always_on_top_top" => toggle_always_on_top(app, WindowPinTarget::Top),
             "update_check" => {
                 let _ = app.emit("codex-gauge-check-update", ());
             }
             "update_install" => {
                 let _ = app.emit("codex-gauge-install-update", ());
-            }
-            "settings" => {
-                open_settings(app);
             }
             "quit" => app.exit(0),
             _ => {}
@@ -57,6 +57,17 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
 }
 
 pub fn update_update_menu(app: &AppHandle, update: Option<&UpdateCheckResult>) {
+    update_menu_with_status(app, update);
+}
+
+pub fn update_menu(app: &AppHandle) {
+    let update = app
+        .try_state::<AppState>()
+        .and_then(|state| state.current_update_status());
+    update_menu_with_status(app, update.as_ref());
+}
+
+fn update_menu_with_status(app: &AppHandle, update: Option<&UpdateCheckResult>) {
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
     };
@@ -69,15 +80,70 @@ fn build_menu(
     app: &AppHandle,
     update: Option<&UpdateCheckResult>,
 ) -> tauri::Result<Menu<tauri::Wry>> {
-    let toggle = MenuItem::with_id(app, "toggle", "打开/隐藏浮窗", true, None::<&str>)?;
-    let always_on_top = MenuItem::with_id(
+    let main_visible = window_visible(app, "main");
+    let top_visible = window_visible(app, "top");
+    let detail_visible = window_visible(app, "detail");
+    let settings_visible = window_visible(app, "settings");
+    let main_always_on_top = app
+        .try_state::<AppState>()
+        .map(|state| state.always_on_top_enabled(WindowPinTarget::Main))
+        .unwrap_or(false);
+    let top_always_on_top = app
+        .try_state::<AppState>()
+        .map(|state| state.always_on_top_enabled(WindowPinTarget::Top))
+        .unwrap_or(false);
+
+    let toggle = MenuItem::with_id(
         app,
-        "always_on_top",
-        "固定/取消固定在最上层",
+        "toggle",
+        window_status_label("桌面浮窗", main_visible),
         true,
         None::<&str>,
     )?;
-    let refresh = MenuItem::with_id(app, "refresh", "刷新", true, None::<&str>)?;
+    let toggle_top = MenuItem::with_id(
+        app,
+        "toggle_top",
+        window_status_label("顶部浮窗", top_visible),
+        true,
+        None::<&str>,
+    )?;
+    let detail = MenuItem::with_id(
+        app,
+        "detail",
+        window_status_label("详细信息", detail_visible),
+        true,
+        None::<&str>,
+    )?;
+    let settings = MenuItem::with_id(
+        app,
+        "settings",
+        window_status_label("设置", settings_visible),
+        true,
+        None::<&str>,
+    )?;
+    let refresh = MenuItem::with_id(app, "refresh", "刷新用量", true, None::<&str>)?;
+    let main_always_on_top_item = MenuItem::with_id(
+        app,
+        "always_on_top_main",
+        if main_always_on_top {
+            "✓ 桌面浮窗置顶"
+        } else {
+            "○ 桌面浮窗不置顶"
+        },
+        true,
+        None::<&str>,
+    )?;
+    let top_always_on_top_item = MenuItem::with_id(
+        app,
+        "always_on_top_top",
+        if top_always_on_top {
+            "✓ 顶部浮窗置顶"
+        } else {
+            "○ 顶部浮窗不置顶"
+        },
+        true,
+        None::<&str>,
+    )?;
     let update_item = match update {
         Some(result) if result.available => MenuItem::with_id(
             app,
@@ -101,17 +167,19 @@ fn build_menu(
             None::<&str>,
         )?,
     };
-    let settings = MenuItem::with_id(app, "settings", "打开设置", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
 
     Menu::with_items(
         app,
         &[
             &toggle,
-            &always_on_top,
-            &refresh,
-            &update_item,
+            &toggle_top,
+            &detail,
             &settings,
+            &refresh,
+            &main_always_on_top_item,
+            &top_always_on_top_item,
+            &update_item,
             &quit,
         ],
     )
@@ -131,31 +199,108 @@ fn toggle_window(app: &AppHandle) {
             let _ = window.show();
             let _ = window.set_focus();
         }
+        update_menu(app);
     }
 }
 
-fn open_settings(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_size(crate::window::main_window_size(true));
-        let _ = window.show();
-        let _ = window.set_focus();
-        let _ = app.emit("codex-gauge-open-settings", ());
+fn toggle_top_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("top") {
+        let _ = window.set_size(crate::window::top_window_size(false));
+        if window.is_visible().unwrap_or_default() {
+            let _ = window.hide();
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        update_menu(app);
+    }
+}
+
+fn toggle_named_window(app: &AppHandle, label: &str) {
+    if let Some(window) = app.get_webview_window(label) {
+        if window.is_visible().unwrap_or_default() {
+            let _ = window.hide();
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        update_menu(app);
+    }
+}
+
+fn toggle_always_on_top(app: &AppHandle, target: WindowPinTarget) {
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    let enabled = state.toggle_always_on_top(target);
+    let label = match target {
+        WindowPinTarget::Main => "main",
+        WindowPinTarget::Top => "top",
+    };
+    if let Some(window) = app.get_webview_window(label) {
+        let _ = window.set_always_on_top(enabled);
+    }
+    let _ = app.emit("codex-gauge-config-updated", ());
+    update_menu(app);
+}
+
+fn window_visible(app: &AppHandle, label: &str) -> bool {
+    app.get_webview_window(label)
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false)
+}
+
+fn window_status_label(name: &str, visible: bool) -> String {
+    if visible {
+        format!("✓ {}：已打开", name)
+    } else {
+        format!("○ {}：已隐藏", name)
     }
 }
 
 fn default_tooltip() -> &'static str {
-    "Codex Gauge\n5h 未知 · 7d 未知\n重置次数: 未知"
+    "5h: 未知\n7d: 未知\n重置: 未知"
 }
 
 fn snapshot_tooltip(snapshot: &CodexUsageSnapshot) -> String {
     format!(
-        "Codex Gauge\n5h 剩余 {} · 已用 {} · 重置 {}\n7d 剩余 {} · 已用 {} · 重置 {}\n重置次数: {} · {}",
-        percent(snapshot.primary_window.as_ref().and_then(|window| window.remaining_percent)),
-        percent(snapshot.primary_window.as_ref().and_then(|window| window.used_percent)),
-        compact_time(snapshot.primary_window.as_ref().and_then(|window| window.reset_at)),
-        percent(snapshot.secondary_window.as_ref().and_then(|window| window.remaining_percent)),
-        percent(snapshot.secondary_window.as_ref().and_then(|window| window.used_percent)),
-        compact_time(snapshot.secondary_window.as_ref().and_then(|window| window.reset_at)),
+        "5h: 剩{} 用{} 重{}\n7d: 剩{} 用{} 重{}\n重置: {} · {}",
+        percent(
+            snapshot
+                .primary_window
+                .as_ref()
+                .and_then(|window| window.remaining_percent)
+        ),
+        percent(
+            snapshot
+                .primary_window
+                .as_ref()
+                .and_then(|window| window.used_percent)
+        ),
+        compact_time(
+            snapshot
+                .primary_window
+                .as_ref()
+                .and_then(|window| window.reset_at)
+        ),
+        percent(
+            snapshot
+                .secondary_window
+                .as_ref()
+                .and_then(|window| window.remaining_percent)
+        ),
+        percent(
+            snapshot
+                .secondary_window
+                .as_ref()
+                .and_then(|window| window.used_percent)
+        ),
+        compact_time(
+            snapshot
+                .secondary_window
+                .as_ref()
+                .and_then(|window| window.reset_at)
+        ),
         snapshot
             .credits
             .as_ref()

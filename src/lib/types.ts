@@ -52,6 +52,8 @@ export type AppConfig = {
     startOnBoot: boolean;
     showOnStartup: boolean;
     alwaysOnTop: boolean;
+    mainAlwaysOnTop: boolean;
+    topAlwaysOnTop: boolean;
     lockPosition: boolean;
     oledShiftEnabled: boolean;
     topStatusEnabled: boolean;
