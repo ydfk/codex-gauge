@@ -2,6 +2,11 @@
 pub fn apply_start_on_boot(enabled: bool) -> Result<(), String> {
     use winreg::{enums::*, RegKey};
 
+    #[cfg(debug_assertions)]
+    if enabled {
+        return Err("开发模式不支持开机启动，请使用安装包版本".to_string());
+    }
+
     let exe = std::env::current_exe().map_err(|_| "无法定位当前程序".to_string())?;
     let command = format!("\"{}\"", exe.display());
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);

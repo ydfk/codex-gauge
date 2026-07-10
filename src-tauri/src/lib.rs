@@ -168,6 +168,16 @@ impl AppState {
             .start_on_boot
     }
 
+    #[cfg(debug_assertions)]
+    fn disable_debug_start_on_boot(&self) {
+        let mut config = self.config.lock().expect("config mutex");
+        if !config.general.start_on_boot {
+            return;
+        }
+        config.general.start_on_boot = false;
+        self.storage.save_config(&config);
+    }
+
     pub(crate) fn set_window_visibility_preference(&self, label: &str, visible: bool) -> bool {
         let mut config = self.config.lock().expect("config mutex");
         let preference = match label {
@@ -506,10 +516,14 @@ fn has_usage_data(snapshot: Option<&CodexUsageSnapshot>) -> bool {
 
 pub fn run() {
     let storage = AppStorage::new();
+    let state = AppState::new(storage);
+
+    #[cfg(debug_assertions)]
+    state.disable_debug_start_on_boot();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(AppState::new(storage))
+        .manage(state)
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
             refresh_snapshot,
