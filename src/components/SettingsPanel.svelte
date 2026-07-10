@@ -3,6 +3,7 @@
   import type { AppConfig, UpdateCheckResult } from "../lib/types";
 
   export let config: AppConfig | null = null;
+  export let appVersion = "";
   export let updateStatus: UpdateCheckResult | null = null;
   export let onsave: (config: AppConfig) => Promise<AppConfig>;
   export let oncheckupdate: () => Promise<void>;
@@ -19,6 +20,9 @@
   let dragging = false;
   let updateAction = "";
   let saveError = "";
+
+  $: currentVersion = appVersion ? `v${appVersion}` : "未知";
+  $: availableVersion = updateStatus?.available && updateStatus.version ? `v${updateStatus.version}` : null;
 
   async function save() {
     if (!draft) return;
@@ -196,11 +200,6 @@
             <input type="checkbox" bind:checked={draft.update.autoCheck} onchange={save} />
           </label>
 
-          <label class="toggle">
-            <span>发现更新后自动安装</span>
-            <input type="checkbox" bind:checked={draft.update.autoInstall} onchange={save} />
-          </label>
-
           <label class="setting-wide">
             <span>更新地址</span>
             <input type="text" bind:value={draft.update.endpoint} onchange={save} />
@@ -208,8 +207,14 @@
 
           <div class="update-box">
             <div>
-              <strong>{updateStatus?.available ? "发现新版本" : "更新状态"}</strong>
-              <span>{updateAction || updateStatus?.message || "尚未检查"}</span>
+              <strong>
+                {#if availableVersion}
+                  {currentVersion} → {availableVersion}
+                {:else}
+                  当前版本 {currentVersion}
+                {/if}
+              </strong>
+              <span>{updateAction || updateStatus?.message || "点击检查更新"}</span>
             </div>
             <div class="settings-actions">
               <button
@@ -219,10 +224,10 @@
               >检查</button>
               <button
                 type="button"
-                disabled={!!updateAction}
-                onclick={() => void runUpdateAction("正在检查并安装更新", oninstallupdate)}
+                disabled={!availableVersion || !!updateAction}
+                onclick={() => void runUpdateAction("正在下载并安装更新", oninstallupdate)}
               >
-                更新
+                {availableVersion ? `更新 ${availableVersion}` : "暂无更新"}
               </button>
             </div>
           </div>

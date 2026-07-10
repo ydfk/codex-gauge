@@ -77,6 +77,7 @@ fn build_menu(
     app: &AppHandle,
     update: Option<&UpdateCheckResult>,
 ) -> tauri::Result<Menu<tauri::Wry>> {
+    let current_version = format!("v{}", app.package_info().version);
     let main_visible = window_visible(app, "main");
     let top_visible = window_visible(app, "top");
     let detail_visible = window_visible(app, "detail");
@@ -175,21 +176,21 @@ fn build_menu(
         Some(result) if result.available => MenuItem::with_id(
             app,
             "update_install",
-            update_install_label(result),
+            update_install_label(&current_version, result),
             true,
             None::<&str>,
         )?,
         Some(result) => MenuItem::with_id(
             app,
             "update_check",
-            update_check_label(result),
+            update_check_label(&current_version, result),
             true,
             None::<&str>,
         )?,
         None => MenuItem::with_id(
             app,
             "update_check",
-            "更新：检查最新版本",
+            format!("更新：当前 {}（检查更新）", current_version),
             true,
             None::<&str>,
         )?,
@@ -414,20 +415,20 @@ fn status_text(status: &SnapshotStatus) -> &'static str {
     }
 }
 
-fn update_check_label(result: &UpdateCheckResult) -> String {
+fn update_check_label(current_version: &str, result: &UpdateCheckResult) -> String {
     if result.message.contains("最新") {
-        "更新：已是最新版".to_string()
+        format!("更新：{}（已是最新版）", current_version)
     } else if result.message.contains("失败") || result.message.contains("无效") {
-        "更新：检查失败".to_string()
+        format!("更新：{}（检查失败，点击重试）", current_version)
     } else {
-        "更新：重新检查".to_string()
+        format!("更新：{}（重新检查）", current_version)
     }
 }
 
-fn update_install_label(result: &UpdateCheckResult) -> String {
+fn update_install_label(current_version: &str, result: &UpdateCheckResult) -> String {
     result
         .version
         .as_ref()
-        .map(|version| format!("安装更新 {}", version))
-        .unwrap_or_else(|| "安装更新".to_string())
+        .map(|version| format!("更新：{} → v{}（点击安装）", current_version, version))
+        .unwrap_or_else(|| format!("更新：{}（点击安装）", current_version))
 }

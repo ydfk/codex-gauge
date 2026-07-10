@@ -8,6 +8,7 @@
   import TopStatusWidget from "../components/TopStatusWidget.svelte";
   import {
     getConfig,
+    getAppVersion,
     getSnapshot,
     checkUpdate,
     installUpdate,
@@ -28,6 +29,7 @@
   let config: AppConfig | null = null;
   let message = "";
   let updateStatus: UpdateCheckResult | null = null;
+  let appVersion = "";
   let refreshTimer: number | null = null;
   let oledTimer: number | null = null;
   let oledStep = 0;
@@ -50,7 +52,6 @@
       listen("codex-gauge-toggle-always-on-top", () => void toggleAlwaysOnTop()),
       listen("codex-gauge-toggle-lock", () => void toggleLockPosition()),
       listen("codex-gauge-toggle-start-on-boot", () => void toggleStartOnBoot()),
-      listen("codex-gauge-toggle-auto-update", () => void toggleAutoUpdate()),
       listen("codex-gauge-open-login", () => void openCodexLogin()),
       listen("codex-gauge-check-update", () => void checkForUpdate(false)),
       listen("codex-gauge-install-update", () => void installAvailableUpdate()),
@@ -67,7 +68,7 @@
 
   async function bootstrap() {
     try {
-      config = await getConfig();
+      [config, appVersion] = await Promise.all([getConfig(), getAppVersion()]);
       if (isMainWindow) await setWindowMode(false);
       await refresh();
       if (isMainWindow && config.update.autoCheck) void checkForUpdate(true);
@@ -92,11 +93,6 @@
     try {
       if (!silent) message = "检查更新中";
       updateStatus = await checkUpdate();
-      if (updateStatus.available && config?.update.autoInstall) {
-        message = "发现新版本，正在自动安装";
-        await installAvailableUpdate();
-        return;
-      }
       if (!silent || updateStatus.available) message = updateStatus.message;
     } catch {
       if (!silent) message = "检查更新失败";
@@ -155,14 +151,6 @@
     await updateConfig({
       ...config,
       general: { ...config.general, startOnBoot: !config.general.startOnBoot },
-    });
-  }
-
-  async function toggleAutoUpdate() {
-    if (!config) return;
-    await updateConfig({
-      ...config,
-      update: { ...config.update, autoCheck: !config.update.autoCheck },
     });
   }
 
@@ -294,6 +282,7 @@
   {:else if isSettingsWindow}
     <SettingsPanel
       {config}
+      {appVersion}
       {updateStatus}
       onsave={updateConfig}
       oncheckupdate={() => checkForUpdate(false)}

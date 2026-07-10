@@ -26,6 +26,11 @@ pub struct AppState {
     oled_moves: Mutex<HashMap<String, (i32, i32)>>,
 }
 
+#[tauri::command]
+fn get_app_version(app: AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
 #[derive(Debug, Default)]
 struct RefreshCache {
     failure_count: u32,
@@ -527,6 +532,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
             refresh_snapshot,
+            get_app_version,
             get_config,
             save_config,
             get_reset_stats,

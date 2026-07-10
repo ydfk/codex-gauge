@@ -37,7 +37,7 @@ pub async fn check_update(
         Some(update) => UpdateCheckResult {
             available: true,
             version: Some(update.version),
-            message: "发现新版本，等待安装。".to_string(),
+            message: "发现新版本，点击更新即可安装。".to_string(),
         },
         None => UpdateCheckResult {
             available: false,

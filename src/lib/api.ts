@@ -13,6 +13,10 @@ export function getConfig() {
   return invoke<AppConfig>("get_config");
 }
 
+export function getAppVersion() {
+  return invoke<string>("get_app_version");
+}
+
 export function saveConfig(config: AppConfig) {
   return invoke<AppConfig>("save_config", { config });
 }

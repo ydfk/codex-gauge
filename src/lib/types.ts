@@ -70,7 +70,6 @@ export type AppConfig = {
   };
   update: {
     autoCheck: boolean;
-    autoInstall: boolean;
     channel: string;
     endpoint: string;
   };
