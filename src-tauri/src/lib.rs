@@ -99,6 +99,12 @@ impl AppState {
         self.storage.save_config(&config);
     }
 
+    pub(crate) fn save_top_window_position(&self, x: i32) {
+        let mut config = self.config.lock().expect("config mutex");
+        config.window.top_x = Some(x);
+        self.storage.save_config(&config);
+    }
+
     fn mark_oled_move(&self, label: &str, x: i32, y: i32) {
         self.oled_moves
             .lock()
@@ -181,6 +187,21 @@ impl AppState {
             WindowPinTarget::Main => config.general.main_always_on_top,
             WindowPinTarget::Top => config.general.top_always_on_top,
         }
+    }
+
+    pub(crate) fn lock_position_enabled(&self) -> bool {
+        self.config
+            .lock()
+            .expect("config mutex")
+            .general
+            .lock_position
+    }
+
+    pub(crate) fn toggle_lock_position(&self) -> bool {
+        let mut config = self.config.lock().expect("config mutex");
+        config.general.lock_position = !config.general.lock_position;
+        self.storage.save_config(&config);
+        config.general.lock_position
     }
 
     pub(crate) fn toggle_always_on_top(&self, target: WindowPinTarget) -> bool {
@@ -514,9 +535,13 @@ mod tests {
 
         assert!(state.set_window_visibility_preference("main", false));
         assert!(state.set_window_visibility_preference("top", false));
+        assert!(state.toggle_lock_position());
+        state.save_top_window_position(256);
 
         let config = state.storage.load_config();
         assert!(!config.general.show_on_startup);
         assert!(!config.general.top_status_enabled);
+        assert!(config.general.lock_position);
+        assert_eq!(config.window.top_x, Some(256));
     }
 }

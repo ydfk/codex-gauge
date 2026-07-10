@@ -55,6 +55,8 @@ pub struct UpdateConfig {
 pub struct WindowConfig {
     pub x: Option<i32>,
     pub y: Option<i32>,
+    #[serde(default)]
+    pub top_x: Option<i32>,
     pub width: f64,
     pub height: f64,
 }
@@ -62,7 +64,7 @@ pub struct WindowConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            version: 5,
+            version: 6,
             general: GeneralConfig {
                 start_on_boot: false,
                 show_on_startup: true,
@@ -90,6 +92,7 @@ impl Default for AppConfig {
             window: WindowConfig {
                 x: None,
                 y: None,
+                top_x: None,
                 width: 430.0,
                 height: 104.0,
             },
@@ -118,6 +121,9 @@ impl AppConfig {
         if self.version < 5 {
             self.general.top_always_on_top = true;
             self.version = 5;
+        }
+        if self.version < 6 {
+            self.version = 6;
         }
     }
 }

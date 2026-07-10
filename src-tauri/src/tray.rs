@@ -1,6 +1,6 @@
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager,
 };
 
@@ -32,6 +32,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             }
             "always_on_top_main" => toggle_always_on_top(app, WindowPinTarget::Main),
             "always_on_top_top" => toggle_always_on_top(app, WindowPinTarget::Top),
+            "lock_position" => toggle_lock_position(app),
             "update_check" => {
                 let _ = app.emit("codex-gauge-check-update", ());
             }
@@ -42,13 +43,8 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } = event
-            {
-                let _ = tray.app_handle();
+            if matches!(event, TrayIconEvent::DoubleClick { .. }) {
+                bring_visible_windows_to_front(tray.app_handle());
             }
         })
         .build(app)?;
@@ -91,6 +87,10 @@ fn build_menu(
     let top_always_on_top = app
         .try_state::<AppState>()
         .map(|state| state.always_on_top_enabled(WindowPinTarget::Top))
+        .unwrap_or(false);
+    let lock_position = app
+        .try_state::<AppState>()
+        .map(|state| state.lock_position_enabled())
         .unwrap_or(false);
 
     let toggle = MenuItem::with_id(
@@ -144,6 +144,17 @@ fn build_menu(
         true,
         None::<&str>,
     )?;
+    let lock_position_item = MenuItem::with_id(
+        app,
+        "lock_position",
+        if lock_position {
+            "✓ 锁定桌面浮窗位置"
+        } else {
+            "○ 桌面浮窗位置可拖动"
+        },
+        true,
+        None::<&str>,
+    )?;
     let update_item = match update {
         Some(result) if result.available => MenuItem::with_id(
             app,
@@ -179,6 +190,7 @@ fn build_menu(
             &refresh,
             &main_always_on_top_item,
             &top_always_on_top_item,
+            &lock_position_item,
             &update_item,
             &quit,
         ],
@@ -246,6 +258,27 @@ fn toggle_always_on_top(app: &AppHandle, target: WindowPinTarget) {
     }
     let _ = app.emit("codex-gauge-config-updated", ());
     update_menu(app);
+}
+
+fn toggle_lock_position(app: &AppHandle) {
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    state.toggle_lock_position();
+    let _ = app.emit("codex-gauge-config-updated", ());
+    update_menu(app);
+}
+
+fn bring_visible_windows_to_front(app: &AppHandle) {
+    for label in ["main", "top", "detail", "settings"] {
+        let Some(window) = app.get_webview_window(label) else {
+            continue;
+        };
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
 }
 
 fn persist_window_visibility(app: &AppHandle, label: &str, visible: bool) {

@@ -175,7 +175,11 @@
   function scheduleOledShift() {
     if (oledTimer) window.clearInterval(oledTimer);
     oledTimer = null;
-    if (!isOledWindow || !config?.general.oledShiftEnabled || config.general.lockPosition) {
+    if (
+      !isOledWindow ||
+      !config?.general.oledShiftEnabled ||
+      (isMainWindow && config.general.lockPosition)
+    ) {
       void resetOledShift();
       return;
     }
@@ -253,7 +257,6 @@
   {#if isTopWindow}
     <TopStatusWidget
       {snapshot}
-      locked={config?.general.lockPosition ?? false}
       onmenu={openContextMenu}
       ondetail={() => void showWindow("detail")}
     />

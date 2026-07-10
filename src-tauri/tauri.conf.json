@@ -24,8 +24,8 @@
         "resizable": false,
         "alwaysOnTop": false,
         "skipTaskbar": true,
-        "center": true,
-        "visible": true
+        "center": false,
+        "visible": false
       },
       {
         "label": "top",
@@ -40,8 +40,8 @@
         "resizable": false,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "center": true,
-        "visible": true
+        "center": false,
+        "visible": false
       },
       {
         "label": "detail",

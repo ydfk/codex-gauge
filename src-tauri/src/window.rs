@@ -46,8 +46,8 @@ pub fn setup_main_window(app: &AppHandle) -> tauri::Result<()> {
     let _ = window.set_shadow(false);
     window.set_always_on_top(config.general.main_always_on_top)?;
     place_main_window(&window, config.window.x, config.window.y);
-    if !config.general.show_on_startup {
-        let _ = window.hide();
+    if config.general.show_on_startup {
+        let _ = window.show();
     }
 
     let app_handle = app.clone();
@@ -85,9 +85,9 @@ pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
     window.set_size(top_window_size(false))?;
     let _ = window.set_shadow(false);
     window.set_always_on_top(config.general.top_always_on_top)?;
-    place_top_window(&window);
-    if !config.general.top_status_enabled {
-        let _ = window.hide();
+    place_top_window(&window, config.window.top_x);
+    if config.general.top_status_enabled {
+        let _ = window.show();
     }
 
     let app_handle = app.clone();
@@ -103,7 +103,9 @@ pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
         }
         WindowEvent::Moved(position) => {
             let state = app_handle.state::<AppState>();
-            let _ = state.is_oled_move("top", position.x, position.y);
+            if !state.is_oled_move("top", position.x, position.y) {
+                state.save_top_window_position(position.x);
+            }
         }
         _ => {}
     });
@@ -146,7 +148,7 @@ fn place_main_window(window: &WebviewWindow, x: Option<i32>, y: Option<i32>) {
     let _ = window.set_position(PhysicalPosition::new(x, y));
 }
 
-fn place_top_window(window: &WebviewWindow) {
+fn place_top_window(window: &WebviewWindow, saved_x: Option<i32>) {
     let Ok(Some(monitor)) = window.current_monitor() else {
         return;
     };
@@ -154,7 +156,9 @@ fn place_top_window(window: &WebviewWindow) {
     let monitor_origin = monitor.position();
     let monitor_size = monitor.size();
     let physical_width = (TOP_WIDTH as f64 * monitor.scale_factor()).round() as u32;
-    let x = monitor_origin.x + ((monitor_size.width.saturating_sub(physical_width)) / 2) as i32;
+    let x = saved_x.unwrap_or_else(|| {
+        monitor_origin.x + ((monitor_size.width.saturating_sub(physical_width)) / 2) as i32
+    });
     let y = monitor_origin.y + TOP_STATUS_MARGIN;
     let _ = window.set_position(PhysicalPosition::new(x, y));
 }

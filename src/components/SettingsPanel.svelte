@@ -140,7 +140,7 @@
         </label>
 
         <label class="toggle">
-          <span>锁定位置</span>
+          <span>锁定桌面浮窗位置</span>
           <input type="checkbox" bind:checked={draft.general.lockPosition} onchange={save} />
         </label>
 
