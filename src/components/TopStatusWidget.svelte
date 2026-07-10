@@ -1,13 +1,15 @@
 <script lang="ts">
   import { PhysicalPosition } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { formatPercent, statusText } from "../lib/format";
+  import { formatCompactDateTime, formatPercent, statusText } from "../lib/format";
   import type { CodexUsageSnapshot } from "../lib/types";
 
   export let snapshot: CodexUsageSnapshot | null = null;
   export let locked = false;
+  export let detailsOpen = false;
   export let onmenu: (event: MouseEvent) => void;
   export let ondetail: () => void;
+  export let onhoverchange: (open: boolean) => void;
 
   $: resetCount = snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知";
   $: fiveHourTone = valueTone(snapshot?.primaryWindow?.remainingPercent);
@@ -36,6 +38,7 @@
 
   async function handlePointerDown(event: PointerEvent) {
     if (locked || event.button !== 0) return;
+    if (detailsOpen) onhoverchange(false);
     const target = event.currentTarget as HTMLElement;
     let position: PhysicalPosition;
     try {
@@ -58,7 +61,10 @@
   }
 
   function handlePointerMove(event: PointerEvent) {
-    if (!horizontalDrag) return;
+    if (!horizontalDrag) {
+      showDetails();
+      return;
+    }
     horizontalDrag.nextX = Math.round(
       horizontalDrag.windowX + event.screenX - horizontalDrag.startScreenX,
     );
@@ -93,11 +99,20 @@
   function handleDoubleClick(event: MouseEvent) {
     if (event.button === 0 && !dragging) ondetail();
   }
+
+  function showDetails() {
+    if (!dragging && !detailsOpen) onhoverchange(true);
+  }
+
+  function hideDetails() {
+    if (!dragging) onhoverchange(false);
+  }
 </script>
 
 <section
   class="top-status-widget"
   class:dragging
+  class:details-open={detailsOpen}
   class:position-locked={locked}
   role="presentation"
   title={statusText(snapshot)}
@@ -107,8 +122,28 @@
   onpointerup={handlePointerEnd}
   onpointercancel={handlePointerEnd}
   ondblclick={handleDoubleClick}
+  onmouseenter={showDetails}
+  onmouseleave={hideDetails}
 >
-  <strong class={fiveHourTone}>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
-  <span class={weeklyTone}>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>
-  <em>重置 {resetCount}</em>
+  <div class="top-summary">
+    <strong class={fiveHourTone}>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
+    <span class={weeklyTone}>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>
+    <em>重置 {resetCount}</em>
+  </div>
+
+  {#if detailsOpen}
+    <div class="top-hover-details" role="status">
+      <div class="top-hover-row">
+        <span>5h</span>
+        <strong>剩 {formatPercent(snapshot?.primaryWindow?.remainingPercent)} · 用 {formatPercent(snapshot?.primaryWindow?.usedPercent)}</strong>
+        <small>{formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}</small>
+      </div>
+      <div class="top-hover-row">
+        <span>7d</span>
+        <strong>剩 {formatPercent(snapshot?.secondaryWindow?.remainingPercent)} · 用 {formatPercent(snapshot?.secondaryWindow?.usedPercent)}</strong>
+        <small>{formatCompactDateTime(snapshot?.secondaryWindow?.resetAt)}</small>
+      </div>
+      <p>重置次数 {resetCount}</p>
+    </div>
+  {/if}
 </section>

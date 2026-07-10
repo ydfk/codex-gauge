@@ -33,6 +33,7 @@
   let oledStep = 0;
   let oledOffset = { x: 0, y: 0 };
   let contextMenu: { x: number; y: number } | null = null;
+  let topDetailsOpen = false;
   const currentWindow = getCurrentWindow();
   const windowLabel = currentWindow.label;
   const isTopWindow = windowLabel === "top";
@@ -232,7 +233,16 @@
     const x = Math.max(4, Math.min(event.clientX, window.innerWidth - width - 4));
     const y = isTopWindow ? 29 : Math.max(4, Math.min(event.clientY, window.innerHeight - height - 4));
     contextMenu = { x, y };
-    if (isTopWindow) void setTopContextMenu(true);
+    if (isTopWindow) {
+      topDetailsOpen = false;
+      void setTopContextMenu(true);
+    }
+  }
+
+  async function toggleTopDetails(open: boolean) {
+    if (!isTopWindow || contextMenu) return;
+    topDetailsOpen = open;
+    await setTopContextMenu(open);
   }
 
   async function refreshFromContext() {
@@ -247,12 +257,16 @@
 
   function closeContextMenu() {
     contextMenu = null;
-    if (isTopWindow) void setTopContextMenu(false);
+    if (isTopWindow) {
+      topDetailsOpen = false;
+      void setTopContextMenu(false);
+    }
   }
 </script>
 
 <main
   class:top-window={isTopWindow}
+  class:top-details-open={topDetailsOpen}
   class:context-open={!!contextMenu}
   class:panel-window={isDetailWindow || isSettingsWindow}
   class:settings-window={isSettingsWindow}
@@ -264,8 +278,10 @@
     <TopStatusWidget
       {snapshot}
       locked={config?.general.topLockPosition ?? false}
+      detailsOpen={topDetailsOpen}
       onmenu={openContextMenu}
       ondetail={() => void showWindow("detail")}
+      onhoverchange={(open) => void toggleTopDetails(open)}
     />
   {:else if isDetailWindow}
     <DetailPanel

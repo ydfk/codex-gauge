@@ -73,6 +73,10 @@ main.top-window.context-open {
   min-height: 92px;
 }
 
+main.top-window.top-details-open {
+  min-height: 92px;
+}
+
 main.panel-window {
   width: 460px;
   min-height: 640px;
@@ -137,13 +141,10 @@ main.settings-window {
 
 .top-status-widget {
   position: relative;
-  display: grid;
-  grid-template-columns: auto auto auto;
-  align-items: center;
-  gap: 5px;
+  display: block;
   width: 168px;
   height: 26px;
-  padding: 0 8px;
+  padding: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-top: 0;
@@ -164,6 +165,19 @@ main.settings-window {
   cursor: grabbing;
 }
 
+.top-status-widget.details-open {
+  height: 92px;
+}
+
+.top-summary {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+}
+
 .top-status-widget strong,
 .top-status-widget span,
 .top-status-widget em {
@@ -175,6 +189,51 @@ main.settings-window {
   letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.top-hover-details {
+  display: grid;
+  gap: 3px;
+  padding: 5px 8px 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.13);
+}
+
+.top-hover-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.top-hover-row span,
+.top-hover-row strong,
+.top-hover-row small,
+.top-hover-details p {
+  overflow: hidden;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 680;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-hover-row span,
+.top-hover-details p {
+  color: var(--muted);
+}
+
+.top-hover-row strong {
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.top-hover-row small {
+  color: var(--faint);
+}
+
+.top-hover-details p {
+  margin: 1px 0 0;
 }
 
 .top-status-widget strong {
