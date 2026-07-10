@@ -115,9 +115,11 @@
   }
 
   async function updateConfig(nextConfig: AppConfig) {
-    config = await saveConfig(nextConfig);
+    const savedConfig = await saveConfig(nextConfig);
+    config = savedConfig;
     scheduleRefresh();
     scheduleOledShift();
+    return savedConfig;
   }
 
   async function reloadConfig() {
@@ -251,6 +253,7 @@
   {#if isTopWindow}
     <TopStatusWidget
       {snapshot}
+      locked={config?.general.lockPosition ?? false}
       onmenu={openContextMenu}
       ondetail={() => void showWindow("detail")}
     />
@@ -266,7 +269,7 @@
     <SettingsPanel
       {config}
       {updateStatus}
-      onsave={(nextConfig) => updateConfig(nextConfig)}
+      onsave={updateConfig}
       oncheckupdate={() => checkForUpdate(false)}
       oninstallupdate={installAvailableUpdate}
       onrefresh={() => void refreshFromSettings()}
@@ -280,6 +283,7 @@
     <FloatingWidget
       {snapshot}
       {message}
+      locked={config?.general.lockPosition ?? false}
       onopen={() => void openDetailWindow()}
       onmenu={openContextMenu}
     />

@@ -5,6 +5,7 @@
 
   export let snapshot: CodexUsageSnapshot | null = null;
   export let message = "";
+  export let locked = false;
   export let onopen: () => void;
   export let onmenu: (event: MouseEvent) => void;
 
@@ -35,7 +36,7 @@
   }
 
   function handlePointerDown(event: PointerEvent) {
-    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+    if (locked || event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
     dragStart = { x: event.clientX, y: event.clientY, dragging: false };
   }
 
@@ -73,6 +74,7 @@
   <div
     class="widget-body"
     class:dragging
+    class:position-locked={locked}
     role="presentation"
     onpointerdown={handlePointerDown}
     onpointermove={handlePointerMove}

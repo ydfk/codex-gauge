@@ -1,4 +1,6 @@
-use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewWindow, WindowEvent};
+use tauri::{
+    AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, WebviewWindow, WindowEvent,
+};
 
 use crate::AppState;
 
@@ -55,6 +57,10 @@ pub fn setup_main_window(app: &AppHandle) -> tauri::Result<()> {
             if let Some(window) = app_handle.get_webview_window("main") {
                 let _ = window.hide();
             }
+            let state = app_handle.state::<AppState>();
+            if state.set_window_visibility_preference("main", false) {
+                let _ = app_handle.emit("codex-gauge-config-updated", ());
+            }
         }
         WindowEvent::Moved(position) => {
             let state = app_handle.state::<AppState>();
@@ -90,6 +96,10 @@ pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
         WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
             let _ = top_window.hide();
+            let state = app_handle.state::<AppState>();
+            if state.set_window_visibility_preference("top", false) {
+                let _ = app_handle.emit("codex-gauge-config-updated", ());
+            }
         }
         WindowEvent::Moved(position) => {
             let state = app_handle.state::<AppState>();

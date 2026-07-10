@@ -12,7 +12,7 @@ use std::os::windows::process::CommandExt;
 
 use codex::{refresh_codex_snapshot, CodexUsageSnapshot, ResetStats, SnapshotStatus};
 use storage::{AppConfig, AppStorage, StateDocument};
-use tauri::{AppHandle, Manager, PhysicalPosition, State};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, State};
 
 const SNAPSHOT_CACHE_SECONDS: i64 = 120;
 
@@ -151,6 +151,30 @@ impl AppState {
             .clone()
     }
 
+    pub(crate) fn start_on_boot_enabled(&self) -> bool {
+        self.config
+            .lock()
+            .expect("config mutex")
+            .general
+            .start_on_boot
+    }
+
+    pub(crate) fn set_window_visibility_preference(&self, label: &str, visible: bool) -> bool {
+        let mut config = self.config.lock().expect("config mutex");
+        let preference = match label {
+            "main" => &mut config.general.show_on_startup,
+            "top" => &mut config.general.top_status_enabled,
+            _ => return false,
+        };
+        if *preference == visible {
+            return false;
+        }
+
+        *preference = visible;
+        self.storage.save_config(&config);
+        true
+    }
+
     pub(crate) fn always_on_top_enabled(&self, target: WindowPinTarget) -> bool {
         let config = self.config.lock().expect("config mutex");
         match target {
@@ -207,6 +231,7 @@ fn save_config(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<AppConfig, String> {
+    autostart::apply_start_on_boot(config.general.start_on_boot)?;
     {
         let mut current = state.config.lock().expect("config mutex");
         *current = config.clone();
@@ -215,6 +240,11 @@ fn save_config(
 
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_always_on_top(config.general.main_always_on_top);
+        if config.general.show_on_startup {
+            let _ = window.show();
+        } else {
+            let _ = window.hide();
+        }
     }
     if let Some(window) = app.get_webview_window("top") {
         let _ = window.set_always_on_top(config.general.top_always_on_top);
@@ -224,7 +254,7 @@ fn save_config(
             let _ = window.hide();
         }
     }
-    let _ = autostart::apply_start_on_boot(config.general.start_on_boot);
+    let _ = app.emit("codex-gauge-config-updated", ());
     tray::update_menu(&app);
 
     Ok(config)
@@ -263,22 +293,24 @@ fn hide_windows_console(command: &mut std::process::Command) {
 fn hide_windows_console(_command: &mut std::process::Command) {}
 
 #[tauri::command]
-fn show_main_window(app: AppHandle) -> Result<(), String> {
+fn show_main_window(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "主窗口不存在".to_string())?;
     window.show().map_err(|err| err.to_string())?;
     window.set_focus().map_err(|err| err.to_string())?;
+    persist_window_visibility(&state, &app, "main", true);
     tray::update_menu(&app);
     Ok(())
 }
 
 #[tauri::command]
-fn hide_main_window(app: AppHandle) -> Result<(), String> {
+fn hide_main_window(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "主窗口不存在".to_string())?;
     window.hide().map_err(|err| err.to_string())?;
+    persist_window_visibility(&state, &app, "main", false);
     tray::update_menu(&app);
     Ok(())
 }
@@ -333,18 +365,19 @@ fn move_window_for_oled(
 }
 
 #[tauri::command]
-fn show_window(label: String, app: AppHandle) -> Result<(), String> {
+fn show_window(label: String, state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window(&label)
         .ok_or_else(|| "窗口不存在".to_string())?;
     window.show().map_err(|err| err.to_string())?;
     window.set_focus().map_err(|err| err.to_string())?;
+    persist_window_visibility(&state, &app, &label, true);
     tray::update_menu(&app);
     Ok(())
 }
 
 #[tauri::command]
-fn hide_window(label: String, app: AppHandle) -> Result<(), String> {
+fn hide_window(label: String, state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
     if label == "top" {
         let _ = set_top_context_menu(false, app.clone());
     }
@@ -352,12 +385,17 @@ fn hide_window(label: String, app: AppHandle) -> Result<(), String> {
         .get_webview_window(&label)
         .ok_or_else(|| "窗口不存在".to_string())?;
     window.hide().map_err(|err| err.to_string())?;
+    persist_window_visibility(&state, &app, &label, false);
     tray::update_menu(&app);
     Ok(())
 }
 
 #[tauri::command]
-fn toggle_window_visible(label: String, app: AppHandle) -> Result<bool, String> {
+fn toggle_window_visible(
+    label: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<bool, String> {
     if label == "top" {
         let _ = set_top_context_menu(false, app.clone());
     }
@@ -368,12 +406,14 @@ fn toggle_window_visible(label: String, app: AppHandle) -> Result<bool, String> 
     let visible = window.is_visible().map_err(|err| err.to_string())?;
     if visible {
         window.hide().map_err(|err| err.to_string())?;
+        persist_window_visibility(&state, &app, &label, false);
         tray::update_menu(&app);
         return Ok(false);
     }
 
     window.show().map_err(|err| err.to_string())?;
     window.set_focus().map_err(|err| err.to_string())?;
+    persist_window_visibility(&state, &app, &label, true);
     tray::update_menu(&app);
     Ok(true)
 }
@@ -381,6 +421,12 @@ fn toggle_window_visible(label: String, app: AppHandle) -> Result<bool, String> 
 #[tauri::command]
 fn quit_app(app: AppHandle) {
     app.exit(0);
+}
+
+fn persist_window_visibility(state: &AppState, app: &AppHandle, label: &str, visible: bool) {
+    if state.set_window_visibility_preference(label, visible) {
+        let _ = app.emit("codex-gauge-config-updated", ());
+    }
 }
 
 fn safe_error_kind(err: &std::io::Error) -> &'static str {
@@ -445,6 +491,8 @@ pub fn run() {
             quit_app
         ])
         .setup(|app| {
+            let state = app.state::<AppState>();
+            let _ = autostart::apply_start_on_boot(state.start_on_boot_enabled());
             window::setup_main_window(app.handle())?;
             window::setup_top_window(app.handle())?;
             window::setup_panel_windows(app.handle());
@@ -453,4 +501,22 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running Codex Gauge");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn persists_main_and_top_visibility_preferences() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let state = AppState::new(AppStorage::with_root(temp.path().to_path_buf()));
+
+        assert!(state.set_window_visibility_preference("main", false));
+        assert!(state.set_window_visibility_preference("top", false));
+
+        let config = state.storage.load_config();
+        assert!(!config.general.show_on_startup);
+        assert!(!config.general.top_status_enabled);
+    }
 }

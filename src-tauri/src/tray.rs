@@ -195,9 +195,11 @@ fn toggle_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if window.is_visible().unwrap_or_default() {
             let _ = window.hide();
+            persist_window_visibility(app, "main", false);
         } else {
             let _ = window.show();
             let _ = window.set_focus();
+            persist_window_visibility(app, "main", true);
         }
         update_menu(app);
     }
@@ -208,9 +210,11 @@ fn toggle_top_window(app: &AppHandle) {
         let _ = window.set_size(crate::window::top_window_size(false));
         if window.is_visible().unwrap_or_default() {
             let _ = window.hide();
+            persist_window_visibility(app, "top", false);
         } else {
             let _ = window.show();
             let _ = window.set_focus();
+            persist_window_visibility(app, "top", true);
         }
         update_menu(app);
     }
@@ -242,6 +246,15 @@ fn toggle_always_on_top(app: &AppHandle, target: WindowPinTarget) {
     }
     let _ = app.emit("codex-gauge-config-updated", ());
     update_menu(app);
+}
+
+fn persist_window_visibility(app: &AppHandle, label: &str, visible: bool) {
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    if state.set_window_visibility_preference(label, visible) {
+        let _ = app.emit("codex-gauge-config-updated", ());
+    }
 }
 
 fn window_visible(app: &AppHandle, label: &str) -> bool {

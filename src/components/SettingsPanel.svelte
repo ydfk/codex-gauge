@@ -4,7 +4,7 @@
 
   export let config: AppConfig | null = null;
   export let updateStatus: UpdateCheckResult | null = null;
-  export let onsave: (config: AppConfig) => void;
+  export let onsave: (config: AppConfig) => Promise<AppConfig>;
   export let oncheckupdate: () => Promise<void>;
   export let oninstallupdate: () => Promise<void>;
   export let onrefresh: () => void;
@@ -18,9 +18,17 @@
   let dragStart: { x: number; y: number; dragging: boolean } | null = null;
   let dragging = false;
   let updateAction = "";
+  let saveError = "";
 
-  function save() {
-    if (draft) onsave(draft);
+  async function save() {
+    if (!draft) return;
+    try {
+      await onsave(structuredClone(draft));
+      saveError = "";
+    } catch {
+      draft = config ? structuredClone(config) : null;
+      saveError = "保存设置失败";
+    }
   }
 
   function handlePointerDown(event: PointerEvent) {
@@ -117,7 +125,7 @@
         </label>
 
         <label class="toggle">
-          <span>启动时显示桌面浮窗</span>
+          <span>显示桌面浮窗</span>
           <input type="checkbox" bind:checked={draft.general.showOnStartup} onchange={save} />
         </label>
 
@@ -206,6 +214,9 @@
           </div>
         </div>
       </div>
+      {#if saveError}
+        <p class="settings-error">{saveError}</p>
+      {/if}
     </div>
   {:else}
     <p class="message">设置加载中</p>
