@@ -6,6 +6,7 @@
 
   export let snapshot: CodexUsageSnapshot | null = null;
   export let onmenu: (event: MouseEvent) => void;
+  export let ondetail: () => void;
 
   $: resetCount = snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知";
   $: fiveHourTone = valueTone(snapshot?.primaryWindow?.remainingPercent);
@@ -87,6 +88,10 @@
     event.stopPropagation();
     onmenu(event);
   }
+
+  function handleDoubleClick(event: MouseEvent) {
+    if (event.button === 0 && !dragging) ondetail();
+  }
 </script>
 
 <section
@@ -99,6 +104,7 @@
   onpointermove={handlePointerMove}
   onpointerup={handlePointerEnd}
   onpointercancel={handlePointerEnd}
+  ondblclick={handleDoubleClick}
 >
   <strong class={fiveHourTone}>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
   <span class={weeklyTone}>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>

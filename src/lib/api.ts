@@ -49,6 +49,10 @@ export function setTopContextMenu(open: boolean) {
   return invoke<void>("set_top_context_menu", { open });
 }
 
+export function moveWindowForOled(label: "main" | "top", offsetX: number, offsetY: number) {
+  return invoke<void>("move_window_for_oled", { label, offsetX, offsetY });
+}
+
 export function showWindow(label: string) {
   return invoke<void>("show_window", { label });
 }

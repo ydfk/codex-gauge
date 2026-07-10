@@ -217,6 +217,8 @@ mod tests {
         let config = storage.load_config();
 
         assert_eq!(config.window.width, 430.0);
+        assert!(!config.general.main_always_on_top);
+        assert!(config.general.top_always_on_top);
         assert!(temp.path().join("config.json").exists());
     }
 }

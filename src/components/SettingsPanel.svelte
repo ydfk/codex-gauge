@@ -7,6 +7,11 @@
   export let onsave: (config: AppConfig) => void;
   export let oncheckupdate: () => void;
   export let oninstallupdate: () => void;
+  export let onrefresh: () => void;
+  export let ontogglemain: () => void;
+  export let ontoggletop: () => void;
+  export let onopendetail: () => void;
+  export let onquit: () => void;
   export let onback: () => void;
 
   $: draft = config ? structuredClone(config) : null;
@@ -128,6 +133,19 @@
       </div>
 
       <div class="settings-stack">
+        <div class="settings-section tray-actions">
+          <span class="section-title">快捷操作</span>
+          <div class="setting-action-row">
+            <button type="button" onclick={ontogglemain}>显示/隐藏桌面浮窗</button>
+            <button type="button" onclick={ontoggletop}>显示/隐藏顶部浮窗</button>
+          </div>
+          <div class="setting-action-row">
+            <button type="button" onclick={onopendetail}>打开详细信息</button>
+            <button type="button" onclick={onrefresh}>刷新用量</button>
+          </div>
+          <button class="quit-button" type="button" onclick={onquit}>退出 Codex Gauge</button>
+        </div>
+
         <div class="settings-section">
           <span class="section-title">Codex</span>
           <label>

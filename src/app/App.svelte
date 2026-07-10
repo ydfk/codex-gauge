@@ -1,6 +1,5 @@
 <script lang="ts">
   import { listen } from "@tauri-apps/api/event";
-  import { PhysicalPosition } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { onMount } from "svelte";
   import DetailPanel from "../components/DetailPanel.svelte";
@@ -20,6 +19,8 @@
     showWindow,
     hideWindow,
     toggleWindowVisible,
+    quitApp,
+    moveWindowForOled,
   } from "../lib/api";
   import type { AppConfig, CodexUsageSnapshot, UpdateCheckResult } from "../lib/types";
 
@@ -30,6 +31,7 @@
   let refreshTimer: number | null = null;
   let oledTimer: number | null = null;
   let oledStep = 0;
+  let oledOffset = { x: 0, y: 0 };
   let contextMenu: { x: number; y: number } | null = null;
   const currentWindow = getCurrentWindow();
   const windowLabel = currentWindow.label;
@@ -37,6 +39,7 @@
   const isMainWindow = windowLabel === "main";
   const isDetailWindow = windowLabel === "detail";
   const isSettingsWindow = windowLabel === "settings";
+  const isOledWindow = isMainWindow || isTopWindow;
 
   onMount(() => {
     void bootstrap();
@@ -56,6 +59,7 @@
     return () => {
       if (refreshTimer) window.clearInterval(refreshTimer);
       if (oledTimer) window.clearInterval(oledTimer);
+      void resetOledShift();
       void Promise.all(unlisteners).then((items) => items.forEach((unlisten) => unlisten()));
     };
   });
@@ -162,10 +166,17 @@
     await showWindow("settings");
   }
 
+  async function refreshFromSettings() {
+    await refresh();
+  }
+
   function scheduleOledShift() {
     if (oledTimer) window.clearInterval(oledTimer);
     oledTimer = null;
-    if (!isMainWindow || !config?.general.oledShiftEnabled) return;
+    if (!isOledWindow || !config?.general.oledShiftEnabled || config.general.lockPosition) {
+      void resetOledShift();
+      return;
+    }
 
     oledTimer = window.setInterval(() => void nudgeWindow(), 180_000);
   }
@@ -182,12 +193,23 @@
       [1, -1],
     ];
     const [dx, dy] = offsets[oledStep % offsets.length];
-    oledStep += 1;
     try {
-      const position = await currentWindow.outerPosition();
-      await currentWindow.setPosition(new PhysicalPosition(position.x + dx, position.y + dy));
+      await moveWindowForOled(windowLabel as "main" | "top", dx, dy);
+      oledStep += 1;
+      oledOffset = { x: oledOffset.x + dx, y: oledOffset.y + dy };
     } catch {
       // 窗口位置微调失败不影响用量显示。
+    }
+  }
+
+  async function resetOledShift() {
+    if (!isOledWindow || (oledOffset.x === 0 && oledOffset.y === 0)) return;
+    try {
+      await moveWindowForOled(windowLabel as "main" | "top", -oledOffset.x, -oledOffset.y);
+      oledOffset = { x: 0, y: 0 };
+      oledStep = 0;
+    } catch {
+      // 退出或窗口销毁时无法复位不影响下次启动。
     }
   }
 
@@ -227,7 +249,11 @@
   oncontextmenu={openContextMenu}
 >
   {#if isTopWindow}
-    <TopStatusWidget {snapshot} onmenu={openContextMenu} />
+    <TopStatusWidget
+      {snapshot}
+      onmenu={openContextMenu}
+      ondetail={() => void showWindow("detail")}
+    />
   {:else if isDetailWindow}
     <DetailPanel
       {snapshot}
@@ -243,6 +269,11 @@
       onsave={(nextConfig) => updateConfig(nextConfig)}
       oncheckupdate={() => void checkForUpdate(false)}
       oninstallupdate={() => void installAvailableUpdate()}
+      onrefresh={() => void refreshFromSettings()}
+      ontogglemain={() => void toggleWindowVisible("main")}
+      ontoggletop={() => void toggleWindowVisible("top")}
+      onopendetail={() => void showWindow("detail")}
+      onquit={() => void quitApp()}
       onback={() => void hideWindow("settings")}
     />
   {:else}

@@ -5,14 +5,14 @@ mod tray;
 mod updater;
 mod window;
 
-use std::sync::Mutex;
+use std::{collections::HashMap, sync::Mutex};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
 use codex::{refresh_codex_snapshot, CodexUsageSnapshot, ResetStats, SnapshotStatus};
 use storage::{AppConfig, AppStorage, StateDocument};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, PhysicalPosition, State};
 
 const SNAPSHOT_CACHE_SECONDS: i64 = 120;
 
@@ -23,6 +23,7 @@ pub struct AppState {
     snapshot: Mutex<Option<CodexUsageSnapshot>>,
     refresh_cache: Mutex<RefreshCache>,
     update_status: Mutex<Option<updater::UpdateCheckResult>>,
+    oled_moves: Mutex<HashMap<String, (i32, i32)>>,
 }
 
 #[derive(Debug, Default)]
@@ -43,6 +44,7 @@ impl AppState {
             snapshot: Mutex::new(None),
             refresh_cache: Mutex::new(RefreshCache::default()),
             update_status: Mutex::new(None),
+            oled_moves: Mutex::new(HashMap::new()),
         }
     }
 
@@ -95,6 +97,29 @@ impl AppState {
         config.window.x = Some(x);
         config.window.y = Some(y);
         self.storage.save_config(&config);
+    }
+
+    fn mark_oled_move(&self, label: &str, x: i32, y: i32) {
+        self.oled_moves
+            .lock()
+            .expect("oled moves mutex")
+            .insert(label.to_string(), (x, y));
+    }
+
+    fn clear_oled_move(&self, label: &str) {
+        self.oled_moves
+            .lock()
+            .expect("oled moves mutex")
+            .remove(label);
+    }
+
+    pub(crate) fn is_oled_move(&self, label: &str, x: i32, y: i32) -> bool {
+        let mut moves = self.oled_moves.lock().expect("oled moves mutex");
+        if moves.get(label) != Some(&(x, y)) {
+            return false;
+        }
+        moves.remove(label);
+        true
     }
 
     fn update_refresh_cache(&self, snapshot: &CodexUsageSnapshot) {
@@ -282,6 +307,32 @@ fn set_top_context_menu(open: bool, app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn move_window_for_oled(
+    label: String,
+    offset_x: i32,
+    offset_y: i32,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if !matches!(label.as_str(), "main" | "top") {
+        return Err("窗口不支持防烧屏位移".to_string());
+    }
+
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| "窗口不存在".to_string())?;
+    let position = window.outer_position().map_err(|err| err.to_string())?;
+    let next = PhysicalPosition::new(position.x + offset_x, position.y + offset_y);
+    state.mark_oled_move(&label, next.x, next.y);
+
+    if let Err(err) = window.set_position(next) {
+        state.clear_oled_move(&label);
+        return Err(err.to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn show_window(label: String, app: AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window(&label)
@@ -387,6 +438,7 @@ pub fn run() {
             hide_main_window,
             set_window_mode,
             set_top_context_menu,
+            move_window_for_oled,
             show_window,
             hide_window,
             toggle_window_visible,

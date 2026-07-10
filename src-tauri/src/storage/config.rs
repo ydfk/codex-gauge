@@ -62,13 +62,13 @@ pub struct WindowConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            version: 4,
+            version: 5,
             general: GeneralConfig {
                 start_on_boot: false,
                 show_on_startup: true,
                 always_on_top: false,
                 main_always_on_top: false,
-                top_always_on_top: false,
+                top_always_on_top: true,
                 lock_position: false,
                 oled_shift_enabled: false,
                 top_status_enabled: true,
@@ -114,6 +114,10 @@ impl AppConfig {
             self.general.main_always_on_top = self.general.always_on_top;
             self.general.top_always_on_top = self.general.always_on_top;
             self.version = 4;
+        }
+        if self.version < 5 {
+            self.general.top_always_on_top = true;
+            self.version = 5;
         }
     }
 }

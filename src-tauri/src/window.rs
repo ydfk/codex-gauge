@@ -58,7 +58,9 @@ pub fn setup_main_window(app: &AppHandle) -> tauri::Result<()> {
         }
         WindowEvent::Moved(position) => {
             let state = app_handle.state::<AppState>();
-            state.save_window_position(position.x, position.y);
+            if !state.is_oled_move("main", position.x, position.y) {
+                state.save_window_position(position.x, position.y);
+            }
         }
         _ => {}
     });
@@ -82,12 +84,18 @@ pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
         let _ = window.hide();
     }
 
+    let app_handle = app.clone();
     let top_window = window.clone();
-    window.on_window_event(move |event| {
-        if let WindowEvent::CloseRequested { api, .. } = event {
+    window.on_window_event(move |event| match event {
+        WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
             let _ = top_window.hide();
         }
+        WindowEvent::Moved(position) => {
+            let state = app_handle.state::<AppState>();
+            let _ = state.is_oled_move("top", position.x, position.y);
+        }
+        _ => {}
     });
 
     Ok(())
