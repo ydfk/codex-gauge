@@ -5,8 +5,8 @@
   export let config: AppConfig | null = null;
   export let updateStatus: UpdateCheckResult | null = null;
   export let onsave: (config: AppConfig) => void;
-  export let oncheckupdate: () => void;
-  export let oninstallupdate: () => void;
+  export let oncheckupdate: () => Promise<void>;
+  export let oninstallupdate: () => Promise<void>;
   export let onrefresh: () => void;
   export let ontogglemain: () => void;
   export let ontoggletop: () => void;
@@ -17,6 +17,7 @@
   $: draft = config ? structuredClone(config) : null;
   let dragStart: { x: number; y: number; dragging: boolean } | null = null;
   let dragging = false;
+  let updateAction = "";
 
   function save() {
     if (draft) onsave(draft);
@@ -43,6 +44,15 @@
   function handlePointerUp() {
     dragStart = null;
     dragging = false;
+  }
+
+  async function runUpdateAction(label: string, action: () => Promise<void>) {
+    updateAction = label;
+    try {
+      await action();
+    } finally {
+      updateAction = "";
+    }
   }
 </script>
 
@@ -177,11 +187,19 @@
           <div class="update-box">
             <div>
               <strong>{updateStatus?.available ? "发现新版本" : "更新状态"}</strong>
-              <span>{updateStatus?.message ?? "尚未检查"}</span>
+              <span>{updateAction || updateStatus?.message || "尚未检查"}</span>
             </div>
             <div class="settings-actions">
-              <button type="button" onclick={oncheckupdate}>检查</button>
-              <button type="button" disabled={!updateStatus?.available} onclick={oninstallupdate}>
+              <button
+                type="button"
+                disabled={!!updateAction}
+                onclick={() => void runUpdateAction("正在检查更新", oncheckupdate)}
+              >检查</button>
+              <button
+                type="button"
+                disabled={!!updateAction}
+                onclick={() => void runUpdateAction("正在检查并安装更新", oninstallupdate)}
+              >
                 更新
               </button>
             </div>

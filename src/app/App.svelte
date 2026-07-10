@@ -267,8 +267,8 @@
       {config}
       {updateStatus}
       onsave={(nextConfig) => updateConfig(nextConfig)}
-      oncheckupdate={() => void checkForUpdate(false)}
-      oninstallupdate={() => void installAvailableUpdate()}
+      oncheckupdate={() => checkForUpdate(false)}
+      oninstallupdate={installAvailableUpdate}
       onrefresh={() => void refreshFromSettings()}
       ontogglemain={() => void toggleWindowVisible("main")}
       ontoggletop={() => void toggleWindowVisible("top")}

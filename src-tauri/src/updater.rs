@@ -77,10 +77,13 @@ pub async fn install_update(
     };
 
     let version = update.version.clone();
-    update
-        .download_and_install(|_, _| {}, || {})
-        .await
-        .map_err(|_| "下载或安装更新失败".to_string())?;
+    if update.download_and_install(|_, _| {}, || {}).await.is_err() {
+        return Ok(record_update_result(
+            &app,
+            &state,
+            failed_result("下载或安装更新失败，请确认 Release 资产和签名配置"),
+        ));
+    }
 
     let result = UpdateCheckResult {
         available: true,
