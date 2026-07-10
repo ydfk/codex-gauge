@@ -1,12 +1,12 @@
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager,
 };
 
 use crate::codex::{CodexUsageSnapshot, SnapshotStatus};
 use crate::updater::UpdateCheckResult;
-use crate::{AppState, WindowPinTarget};
+use crate::{AppState, WindowLockTarget, WindowPinTarget};
 
 const TRAY_ID: &str = "codex-gauge-tray";
 
@@ -32,7 +32,8 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             }
             "always_on_top_main" => toggle_always_on_top(app, WindowPinTarget::Main),
             "always_on_top_top" => toggle_always_on_top(app, WindowPinTarget::Top),
-            "lock_position" => toggle_lock_position(app),
+            "lock_position_main" => toggle_lock_position(app, WindowLockTarget::Main),
+            "lock_position_top" => toggle_lock_position(app, WindowLockTarget::Top),
             "update_check" => {
                 let _ = app.emit("codex-gauge-check-update", ());
             }
@@ -88,9 +89,13 @@ fn build_menu(
         .try_state::<AppState>()
         .map(|state| state.always_on_top_enabled(WindowPinTarget::Top))
         .unwrap_or(false);
-    let lock_position = app
+    let main_lock_position = app
         .try_state::<AppState>()
-        .map(|state| state.lock_position_enabled())
+        .map(|state| state.lock_position_enabled(WindowLockTarget::Main))
+        .unwrap_or(false);
+    let top_lock_position = app
+        .try_state::<AppState>()
+        .map(|state| state.lock_position_enabled(WindowLockTarget::Top))
         .unwrap_or(false);
 
     let toggle = MenuItem::with_id(
@@ -144,13 +149,24 @@ fn build_menu(
         true,
         None::<&str>,
     )?;
-    let lock_position_item = MenuItem::with_id(
+    let main_lock_position_item = MenuItem::with_id(
         app,
-        "lock_position",
-        if lock_position {
+        "lock_position_main",
+        if main_lock_position {
             "✓ 锁定桌面浮窗位置"
         } else {
             "○ 桌面浮窗位置可拖动"
+        },
+        true,
+        None::<&str>,
+    )?;
+    let top_lock_position_item = MenuItem::with_id(
+        app,
+        "lock_position_top",
+        if top_lock_position {
+            "✓ 锁定顶部浮条位置"
+        } else {
+            "○ 顶部浮条位置可拖动"
         },
         true,
         None::<&str>,
@@ -178,20 +194,35 @@ fn build_menu(
             None::<&str>,
         )?,
     };
+    let controls_separator = PredefinedMenuItem::separator(app)?;
+    let update_separator = PredefinedMenuItem::separator(app)?;
+    let quit_separator = PredefinedMenuItem::separator(app)?;
+    let window_controls = Submenu::with_items(
+        app,
+        "浮窗控制",
+        true,
+        &[
+            &toggle,
+            &toggle_top,
+            &controls_separator,
+            &main_always_on_top_item,
+            &top_always_on_top_item,
+            &main_lock_position_item,
+            &top_lock_position_item,
+        ],
+    )?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
 
     Menu::with_items(
         app,
         &[
-            &toggle,
-            &toggle_top,
+            &refresh,
+            &window_controls,
             &detail,
             &settings,
-            &refresh,
-            &main_always_on_top_item,
-            &top_always_on_top_item,
-            &lock_position_item,
+            &update_separator,
             &update_item,
+            &quit_separator,
             &quit,
         ],
     )
@@ -260,11 +291,11 @@ fn toggle_always_on_top(app: &AppHandle, target: WindowPinTarget) {
     update_menu(app);
 }
 
-fn toggle_lock_position(app: &AppHandle) {
+fn toggle_lock_position(app: &AppHandle, target: WindowLockTarget) {
     let Some(state) = app.try_state::<AppState>() else {
         return;
     };
-    state.toggle_lock_position();
+    state.toggle_lock_position(target);
     let _ = app.emit("codex-gauge-config-updated", ());
     update_menu(app);
 }

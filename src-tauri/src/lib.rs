@@ -101,6 +101,9 @@ impl AppState {
 
     pub(crate) fn save_top_window_position(&self, x: i32) {
         let mut config = self.config.lock().expect("config mutex");
+        if config.general.top_lock_position {
+            return;
+        }
         config.window.top_x = Some(x);
         self.storage.save_config(&config);
     }
@@ -189,19 +192,28 @@ impl AppState {
         }
     }
 
-    pub(crate) fn lock_position_enabled(&self) -> bool {
-        self.config
-            .lock()
-            .expect("config mutex")
-            .general
-            .lock_position
+    pub(crate) fn lock_position_enabled(&self, target: WindowLockTarget) -> bool {
+        let config = self.config.lock().expect("config mutex");
+        match target {
+            WindowLockTarget::Main => config.general.lock_position,
+            WindowLockTarget::Top => config.general.top_lock_position,
+        }
     }
 
-    pub(crate) fn toggle_lock_position(&self) -> bool {
+    pub(crate) fn toggle_lock_position(&self, target: WindowLockTarget) -> bool {
         let mut config = self.config.lock().expect("config mutex");
-        config.general.lock_position = !config.general.lock_position;
+        let enabled = match target {
+            WindowLockTarget::Main => {
+                config.general.lock_position = !config.general.lock_position;
+                config.general.lock_position
+            }
+            WindowLockTarget::Top => {
+                config.general.top_lock_position = !config.general.top_lock_position;
+                config.general.top_lock_position
+            }
+        };
         self.storage.save_config(&config);
-        config.general.lock_position
+        enabled
     }
 
     pub(crate) fn toggle_always_on_top(&self, target: WindowPinTarget) -> bool {
@@ -223,6 +235,12 @@ impl AppState {
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum WindowPinTarget {
+    Main,
+    Top,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum WindowLockTarget {
     Main,
     Top,
 }
@@ -535,13 +553,16 @@ mod tests {
 
         assert!(state.set_window_visibility_preference("main", false));
         assert!(state.set_window_visibility_preference("top", false));
-        assert!(state.toggle_lock_position());
         state.save_top_window_position(256);
+        assert!(state.toggle_lock_position(WindowLockTarget::Main));
+        assert!(state.toggle_lock_position(WindowLockTarget::Top));
+        state.save_top_window_position(512);
 
         let config = state.storage.load_config();
         assert!(!config.general.show_on_startup);
         assert!(!config.general.top_status_enabled);
         assert!(config.general.lock_position);
+        assert!(config.general.top_lock_position);
         assert_eq!(config.window.top_x, Some(256));
     }
 }

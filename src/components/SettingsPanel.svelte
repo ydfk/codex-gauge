@@ -124,25 +124,34 @@
           <input type="checkbox" bind:checked={draft.general.topAlwaysOnTop} onchange={save} />
         </label>
 
-        <label class="toggle">
-          <span>显示桌面浮窗</span>
-          <input type="checkbox" bind:checked={draft.general.showOnStartup} onchange={save} />
-        </label>
+        <div class="setting-pair">
+          <label class="toggle">
+            <span>显示桌面浮窗</span>
+            <input type="checkbox" bind:checked={draft.general.showOnStartup} onchange={save} />
+          </label>
 
-        <label class="toggle">
-          <span>显示顶部小浮条</span>
-          <input type="checkbox" bind:checked={draft.general.topStatusEnabled} onchange={save} />
-        </label>
+          <label class="toggle">
+            <span>显示顶部小浮条</span>
+            <input type="checkbox" bind:checked={draft.general.topStatusEnabled} onchange={save} />
+          </label>
+        </div>
 
         <label class="toggle">
           <span>防 OLED 烧屏微位移</span>
           <input type="checkbox" bind:checked={draft.general.oledShiftEnabled} onchange={save} />
         </label>
 
-        <label class="toggle">
-          <span>锁定桌面浮窗位置</span>
-          <input type="checkbox" bind:checked={draft.general.lockPosition} onchange={save} />
-        </label>
+        <div class="setting-pair">
+          <label class="toggle">
+            <span>锁定桌面浮窗位置</span>
+            <input type="checkbox" bind:checked={draft.general.lockPosition} onchange={save} />
+          </label>
+
+          <label class="toggle">
+            <span>锁定顶部浮条位置</span>
+            <input type="checkbox" bind:checked={draft.general.topLockPosition} onchange={save} />
+          </label>
+        </div>
 
         <label class="toggle">
           <span>开机启动</span>
@@ -187,6 +196,11 @@
             <input type="checkbox" bind:checked={draft.update.autoCheck} onchange={save} />
           </label>
 
+          <label class="toggle">
+            <span>发现更新后自动安装</span>
+            <input type="checkbox" bind:checked={draft.update.autoInstall} onchange={save} />
+          </label>
+
           <label class="setting-wide">
             <span>更新地址</span>
             <input type="text" bind:value={draft.update.endpoint} onchange={save} />
@@ -215,7 +229,7 @@
         </div>
       </div>
       {#if saveError}
-        <p class="settings-error">{saveError}</p>
+        <p class="settings-error" role="alert">{saveError}</p>
       {/if}
     </div>
   {:else}

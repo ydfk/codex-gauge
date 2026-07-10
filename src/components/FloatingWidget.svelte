@@ -17,6 +17,7 @@
   $: usedSummary = snapshot
     ? `5h已用 ${formatPercent(snapshot.primaryWindow?.usedPercent)} · 7d已用 ${formatPercent(snapshot.secondaryWindow?.usedPercent)}`
     : statusText(snapshot);
+  $: headerStatus = message || usedSummary;
 
   let dragStart: { x: number; y: number; dragging: boolean } | null = null;
   let dragging = false;
@@ -84,10 +85,14 @@
     ondblclick={handleDoubleClick}
   >
     <header class="widget-top">
-      <span class="brand">Codex</span>
-      <span class="status-copy">{usedSummary}</span>
-      <span class="credit-chip">重置次数: {resetCount}</span>
-      <button class="detail-chip" type="button" onclick={onopen}>详情</button>
+      <div class="widget-identity">
+        <span class="brand">Codex</span>
+        <span class="status-copy" class:widget-notice={!!message} aria-live="polite">{headerStatus}</span>
+      </div>
+      <div class="widget-actions">
+        <span class="credit-chip">重置 {resetCount}</span>
+        <button class="detail-chip" type="button" onclick={onopen}>详情</button>
+      </div>
     </header>
 
     <div class="usage-matrix">
@@ -113,8 +118,4 @@
       </div>
     </div>
   </div>
-
-  {#if message}
-    <p class="message">{message}</p>
-  {/if}
 </section>

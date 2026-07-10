@@ -91,6 +91,11 @@
     try {
       if (!silent) message = "检查更新中";
       updateStatus = await checkUpdate();
+      if (updateStatus.available && config?.update.autoInstall) {
+        message = "发现新版本，正在自动安装";
+        await installAvailableUpdate();
+        return;
+      }
       if (!silent || updateStatus.available) message = updateStatus.message;
     } catch {
       if (!silent) message = "检查更新失败";
@@ -178,7 +183,8 @@
     if (
       !isOledWindow ||
       !config?.general.oledShiftEnabled ||
-      (isMainWindow && config.general.lockPosition)
+      (isMainWindow && config.general.lockPosition) ||
+      (isTopWindow && config.general.topLockPosition)
     ) {
       void resetOledShift();
       return;
@@ -257,6 +263,7 @@
   {#if isTopWindow}
     <TopStatusWidget
       {snapshot}
+      locked={config?.general.topLockPosition ?? false}
       onmenu={openContextMenu}
       ondetail={() => void showWindow("detail")}
     />

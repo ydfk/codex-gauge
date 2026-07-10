@@ -23,6 +23,8 @@ pub struct GeneralConfig {
     pub top_always_on_top: bool,
     pub lock_position: bool,
     #[serde(default)]
+    pub top_lock_position: bool,
+    #[serde(default)]
     pub oled_shift_enabled: bool,
     #[serde(default = "default_true")]
     pub top_status_enabled: bool,
@@ -45,6 +47,8 @@ pub struct CodexConfig {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateConfig {
     pub auto_check: bool,
+    #[serde(default = "default_auto_install")]
+    pub auto_install: bool,
     pub channel: String,
     #[serde(default = "default_update_endpoint")]
     pub endpoint: String,
@@ -64,7 +68,7 @@ pub struct WindowConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            version: 6,
+            version: 8,
             general: GeneralConfig {
                 start_on_boot: false,
                 show_on_startup: true,
@@ -72,6 +76,7 @@ impl Default for AppConfig {
                 main_always_on_top: false,
                 top_always_on_top: true,
                 lock_position: false,
+                top_lock_position: false,
                 oled_shift_enabled: false,
                 top_status_enabled: true,
                 opacity: 0.92,
@@ -86,6 +91,7 @@ impl Default for AppConfig {
             },
             update: UpdateConfig {
                 auto_check: true,
+                auto_install: true,
                 channel: "stable".to_string(),
                 endpoint: default_update_endpoint(),
             },
@@ -125,10 +131,22 @@ impl AppConfig {
         if self.version < 6 {
             self.version = 6;
         }
+        if self.version < 7 {
+            self.general.top_lock_position = false;
+            self.version = 7;
+        }
+        if self.version < 8 {
+            self.update.auto_install = true;
+            self.version = 8;
+        }
     }
 }
 
 fn default_true() -> bool {
+    true
+}
+
+fn default_auto_install() -> bool {
     true
 }
 

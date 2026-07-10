@@ -55,6 +55,7 @@ export type AppConfig = {
     mainAlwaysOnTop: boolean;
     topAlwaysOnTop: boolean;
     lockPosition: boolean;
+    topLockPosition: boolean;
     oledShiftEnabled: boolean;
     topStatusEnabled: boolean;
     opacity: number;
@@ -69,6 +70,7 @@ export type AppConfig = {
   };
   update: {
     autoCheck: boolean;
+    autoInstall: boolean;
     channel: string;
     endpoint: string;
   };

@@ -37,7 +37,7 @@ pub async fn check_update(
         Some(update) => UpdateCheckResult {
             available: true,
             version: Some(update.version),
-            message: "发现新版本，可手动安装。".to_string(),
+            message: "发现新版本，等待安装。".to_string(),
         },
         None => UpdateCheckResult {
             available: false,
@@ -86,9 +86,9 @@ pub async fn install_update(
     }
 
     let result = UpdateCheckResult {
-        available: true,
+        available: false,
         version: Some(version),
-        message: "更新已安装，应用将按安装器要求重启或退出。".to_string(),
+        message: "更新已安装，应用即将按安装器要求重启。".to_string(),
     };
     Ok(record_update_result(&app, &state, result))
 }

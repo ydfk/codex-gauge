@@ -5,6 +5,7 @@
   import type { CodexUsageSnapshot } from "../lib/types";
 
   export let snapshot: CodexUsageSnapshot | null = null;
+  export let locked = false;
   export let onmenu: (event: MouseEvent) => void;
   export let ondetail: () => void;
 
@@ -34,7 +35,7 @@
   }
 
   async function handlePointerDown(event: PointerEvent) {
-    if (event.button !== 0) return;
+    if (locked || event.button !== 0) return;
     const target = event.currentTarget as HTMLElement;
     let position: PhysicalPosition;
     try {
@@ -97,6 +98,7 @@
 <section
   class="top-status-widget"
   class:dragging
+  class:position-locked={locked}
   role="presentation"
   title={statusText(snapshot)}
   oncontextmenu={handleContextMenu}
