@@ -1,7 +1,7 @@
 <script lang="ts">
   import { PhysicalPosition } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { formatCompactDateTime, formatPercent, statusText } from "../lib/format";
+  import { formatCompactDateTime, formatPercent } from "../lib/format";
   import type { CodexUsageSnapshot } from "../lib/types";
 
   export let snapshot: CodexUsageSnapshot | null = null;
@@ -115,7 +115,6 @@
   class:details-open={detailsOpen}
   class:position-locked={locked}
   role="presentation"
-  title={statusText(snapshot)}
   oncontextmenu={handleContextMenu}
   onpointerdown={handlePointerDown}
   onpointermove={handlePointerMove}

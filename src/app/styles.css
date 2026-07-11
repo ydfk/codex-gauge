@@ -193,8 +193,8 @@ main.settings-window {
 
 .top-hover-details {
   display: grid;
-  gap: 3px;
-  padding: 5px 8px 6px;
+  gap: 2px;
+  padding: 4px 8px 5px;
   border-top: 1px solid rgba(255, 255, 255, 0.13);
 }
 
@@ -211,10 +211,10 @@ main.settings-window {
 .top-hover-row small,
 .top-hover-details p {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 11px;
   font-style: normal;
-  font-weight: 680;
-  line-height: 1.15;
+  font-weight: 700;
+  line-height: 1.12;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
