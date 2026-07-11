@@ -107,6 +107,16 @@ jobs:
       - name: Build Windows x64 bundles
         run: pnpm tauri build --target x86_64-pc-windows-msvc
 
+      - name: Normalize release asset names
+        shell: pwsh
+        run: |
+          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
+          Get-ChildItem $bundlePath -Recurse -File | Where-Object { $_.Name -match '\s' } | ForEach-Object {
+            $normalizedName = $_.Name -replace '\s+', '.'
+            Rename-Item -LiteralPath $_.FullName -NewName $normalizedName
+            Write-Host "Normalized $($_.Name) -> $normalizedName"
+          }
+
       - name: List bundle artifacts
         shell: pwsh
         run: |
@@ -175,6 +185,15 @@ jobs:
           }
           if (-not $sig) {
             throw "Updater artifacts are enabled, but signature files were not generated."
+          }
+
+          $manifest = Get-Content ($latest | Select-Object -First 1).FullName -Raw | ConvertFrom-Json
+          foreach ($platform in $manifest.platforms.PSObject.Properties) {
+            $assetName = [Uri]::UnescapeDataString(([Uri]$platform.Value.url).Segments[-1])
+            $asset = Get-ChildItem $bundlePath -Recurse -File | Where-Object Name -eq $assetName | Select-Object -First 1
+            if (-not $asset) {
+              throw "Updater manifest references missing release asset: $assetName"
+            }
           }
 
       - name: Create GitHub Release

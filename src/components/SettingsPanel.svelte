@@ -206,7 +206,7 @@
           </label>
 
           <div class="update-box">
-            <div>
+            <div class="update-copy">
               <strong>
                 {#if availableVersion}
                   {currentVersion} → {availableVersion}

@@ -165,6 +165,14 @@ impl AppState {
             .clone()
     }
 
+    pub(crate) fn current_snapshot(&self) -> Option<CodexUsageSnapshot> {
+        self.snapshot.lock().expect("snapshot mutex").clone()
+    }
+
+    pub(crate) fn record_update_event(&self, method: &str, outcome: &str, category: &str) {
+        self.storage.record_update_event(method, outcome, category);
+    }
+
     pub(crate) fn start_on_boot_enabled(&self) -> bool {
         self.config
             .lock()

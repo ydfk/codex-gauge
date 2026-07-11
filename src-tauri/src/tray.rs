@@ -1,3 +1,5 @@
+mod indicator;
+
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{TrayIconBuilder, TrayIconEvent},
@@ -7,15 +9,13 @@ use tauri::{
 use crate::codex::{CodexUsageSnapshot, SnapshotStatus};
 use crate::updater::UpdateCheckResult;
 use crate::{AppState, WindowLockTarget, WindowPinTarget};
+use indicator::{base_tray_icon, tooltip_with_update, update_indicator};
 
 const TRAY_ID: &str = "codex-gauge-tray";
 
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let menu = build_menu(app, None)?;
-
-    let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
-        tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).expect("tray icon")
-    });
+    let icon = base_tray_icon(app);
 
     TrayIconBuilder::with_id(TRAY_ID)
         .tooltip(default_tooltip())
@@ -71,6 +71,7 @@ fn update_menu_with_status(app: &AppHandle, update: Option<&UpdateCheckResult>) 
     if let Ok(menu) = build_menu(app, update) {
         let _ = tray.set_menu(Some(menu));
     }
+    update_indicator(app, &tray, update);
 }
 
 fn build_menu(
@@ -231,7 +232,11 @@ fn build_menu(
 
 pub fn update_tooltip(app: &AppHandle, snapshot: &CodexUsageSnapshot) {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        let _ = tray.set_tooltip(Some(snapshot_tooltip(snapshot)));
+        let update = app
+            .try_state::<AppState>()
+            .and_then(|state| state.current_update_status());
+        let tooltip = tooltip_with_update(snapshot_tooltip(snapshot), update.as_ref());
+        let _ = tray.set_tooltip(Some(tooltip));
     }
 }
 

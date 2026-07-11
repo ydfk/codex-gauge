@@ -84,7 +84,7 @@ main.panel-window {
 
 main.settings-window {
   width: 620px;
-  min-height: 520px;
+  min-height: 550px;
 }
 
 .floating-widget,
@@ -548,7 +548,7 @@ main.settings-window {
 
 .settings-panel {
   width: 620px;
-  height: 520px;
+  height: 550px;
   overflow: hidden;
 }
 
@@ -990,8 +990,9 @@ h1 {
 }
 
 .update-box {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  align-items: stretch;
   border-bottom: 0;
 }
 
@@ -1002,9 +1003,7 @@ h1 {
 .update-box strong,
 .update-box span {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .update-box strong {
@@ -1014,7 +1013,8 @@ h1 {
 }
 
 .settings-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 5px;
 }
 

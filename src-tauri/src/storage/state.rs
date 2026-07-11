@@ -1,5 +1,6 @@
 use std::{
-    fs,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -160,6 +161,22 @@ impl AppStorage {
         write_json(&self.usage_history_path(), &history);
     }
 
+    pub fn record_update_event(&self, method: &str, outcome: &str, category: &str) {
+        let path = self.update_log_path();
+        if fs::metadata(&path).is_ok_and(|metadata| metadata.len() > 256 * 1024) {
+            let _ = fs::write(&path, "");
+        }
+
+        let timestamp = Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, false);
+        let line = format!(
+            "{} method={} outcome={} category={}\n",
+            timestamp, method, outcome, category
+        );
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+            let _ = file.write_all(line.as_bytes());
+        }
+    }
+
     fn config_path(&self) -> PathBuf {
         self.root.join("config.json")
     }
@@ -170,6 +187,10 @@ impl AppStorage {
 
     fn usage_history_path(&self) -> PathBuf {
         self.root.join("usage-history.json")
+    }
+
+    fn update_log_path(&self) -> PathBuf {
+        self.root.join("update.log")
     }
 }
 
@@ -220,5 +241,17 @@ mod tests {
         assert!(!config.general.main_always_on_top);
         assert!(config.general.top_always_on_top);
         assert!(temp.path().join("config.json").exists());
+    }
+
+    #[test]
+    fn writes_sanitized_update_log() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let storage = AppStorage::with_root(temp.path().to_path_buf());
+
+        storage.record_update_event("install_update", "failed", "asset_not_found");
+
+        let log = fs::read_to_string(temp.path().join("update.log")).expect("update log");
+        assert!(log.contains("method=install_update outcome=failed category=asset_not_found"));
+        assert!(!log.contains("Authorization"));
     }
 }
