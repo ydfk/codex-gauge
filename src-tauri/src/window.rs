@@ -10,7 +10,7 @@ pub const EXPANDED_WIDTH: u32 = 460;
 pub const EXPANDED_HEIGHT: u32 = 640;
 pub const TOP_WIDTH: u32 = 168;
 pub const TOP_HEIGHT: u32 = 26;
-pub const TOP_MENU_HEIGHT: u32 = 92;
+pub const TOP_MENU_HEIGHT: u32 = 108;
 
 const DEFAULT_TOP_MARGIN: i32 = 28;
 const TOP_STATUS_MARGIN: i32 = 0;

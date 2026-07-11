@@ -135,12 +135,12 @@
       <div class="top-hover-row">
         <span>5h</span>
         <strong>剩 {formatPercent(snapshot?.primaryWindow?.remainingPercent)} · 用 {formatPercent(snapshot?.primaryWindow?.usedPercent)}</strong>
-        <small>{formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}</small>
+        <small>重置 {formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}</small>
       </div>
       <div class="top-hover-row">
         <span>7d</span>
         <strong>剩 {formatPercent(snapshot?.secondaryWindow?.remainingPercent)} · 用 {formatPercent(snapshot?.secondaryWindow?.usedPercent)}</strong>
-        <small>{formatCompactDateTime(snapshot?.secondaryWindow?.resetAt)}</small>
+        <small>重置 {formatCompactDateTime(snapshot?.secondaryWindow?.resetAt)}</small>
       </div>
       <p>重置次数 {resetCount}</p>
     </div>
