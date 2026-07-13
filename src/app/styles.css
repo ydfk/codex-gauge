@@ -516,7 +516,8 @@ main.settings-window {
   position: fixed;
   z-index: 50;
   display: grid;
-  min-width: 90px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 160px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 10px;
@@ -539,7 +540,11 @@ main.settings-window {
   cursor: pointer;
 }
 
-.float-context-menu button:last-child {
+.float-context-menu button:nth-child(odd) {
+  border-right: 1px solid var(--line-soft);
+}
+
+.float-context-menu button:nth-last-child(-n + 2) {
   border-bottom: 0;
 }
 

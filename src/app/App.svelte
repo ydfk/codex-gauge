@@ -43,6 +43,12 @@
   const isDetailWindow = windowLabel === "detail";
   const isSettingsWindow = windowLabel === "settings";
   const isOledWindow = isMainWindow || isTopWindow;
+  $: currentAlwaysOnTop = isTopWindow
+    ? (config?.general.topAlwaysOnTop ?? false)
+    : (config?.general.mainAlwaysOnTop ?? false);
+  $: currentPositionLocked = isTopWindow
+    ? (config?.general.topLockPosition ?? false)
+    : (config?.general.lockPosition ?? false);
 
   onMount(() => {
     void bootstrap();
@@ -132,17 +138,23 @@
 
   async function toggleLockPosition() {
     if (!config) return;
+    const general = isTopWindow
+      ? { ...config.general, topLockPosition: !config.general.topLockPosition }
+      : { ...config.general, lockPosition: !config.general.lockPosition };
     await updateConfig({
       ...config,
-      general: { ...config.general, lockPosition: !config.general.lockPosition },
+      general,
     });
   }
 
   async function toggleAlwaysOnTop() {
     if (!config) return;
+    const general = isTopWindow
+      ? { ...config.general, topAlwaysOnTop: !config.general.topAlwaysOnTop }
+      : { ...config.general, mainAlwaysOnTop: !config.general.mainAlwaysOnTop };
     await updateConfig({
       ...config,
-      general: { ...config.general, mainAlwaysOnTop: !config.general.mainAlwaysOnTop },
+      general,
     });
   }
 
@@ -216,8 +228,8 @@
 
   function openContextMenu(event: MouseEvent) {
     event.preventDefault();
-    const width = 90;
-    const height = 62;
+    const width = 160;
+    const height = 58;
     const x = Math.max(4, Math.min(event.clientX, window.innerWidth - width - 4));
     const y = isTopWindow ? 29 : Math.max(4, Math.min(event.clientY, window.innerHeight - height - 4));
     contextMenu = { x, y };
@@ -236,6 +248,16 @@
   async function refreshFromContext() {
     closeContextMenu();
     await refresh();
+  }
+
+  async function toggleAlwaysOnTopFromContext() {
+    closeContextMenu();
+    await toggleAlwaysOnTop();
+  }
+
+  async function toggleLockFromContext() {
+    closeContextMenu();
+    await toggleLockPosition();
   }
 
   async function closeCurrentWindow() {
@@ -312,6 +334,18 @@
       tabindex="-1"
       onpointerdown={(event) => event.stopPropagation()}
     >
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={currentAlwaysOnTop}
+        onclick={() => void toggleAlwaysOnTopFromContext()}
+      >{currentAlwaysOnTop ? "取消置顶" : "置顶"}</button>
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={currentPositionLocked}
+        onclick={() => void toggleLockFromContext()}
+      >{currentPositionLocked ? "取消固定" : "固定位置"}</button>
       <button type="button" role="menuitem" onclick={() => void refreshFromContext()}>刷新</button>
       <button type="button" role="menuitem" onclick={() => void closeCurrentWindow()}>关闭</button>
     </div>
