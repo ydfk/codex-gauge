@@ -40,6 +40,7 @@ export type CodexUsageSnapshot = {
   status: "ok" | "not_logged_in" | "invalid_auth" | "request_failed";
   planType?: string | null;
   primaryWindow?: UsageWindow | null;
+  primaryWindowUnlimited: boolean;
   secondaryWindow?: UsageWindow | null;
   credits?: UsageCredits | null;
   rateLimitReachedType?: string | null;

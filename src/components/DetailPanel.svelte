@@ -100,16 +100,20 @@
   {/if}
 
   <div class="cockpit-grid">
-    <UsageRing label="5h" window={snapshot?.primaryWindow ?? null} />
+    <UsageRing
+      label="5h"
+      window={snapshot?.primaryWindow ?? null}
+      unlimited={snapshot?.primaryWindowUnlimited ?? false}
+    />
     <UsageRing label="7d" window={snapshot?.secondaryWindow ?? null} />
   </div>
 
   <div class="quota-board">
     <div>
       <span>5 小时使用</span>
-      <strong>{formatPercent(snapshot?.primaryWindow?.usedPercent)}</strong>
-      <small>剩余 {formatPercent(snapshot?.primaryWindow?.remainingPercent)} · {formatReset(snapshot?.primaryWindow?.resetAt)}</small>
-      <em>重置 {formatDateTime(snapshot?.primaryWindow?.resetAt)}</em>
+      <strong>{snapshot?.primaryWindowUnlimited ? "无限" : formatPercent(snapshot?.primaryWindow?.usedPercent)}</strong>
+      <small>{snapshot?.primaryWindowUnlimited ? "无用量限制" : `剩余 ${formatPercent(snapshot?.primaryWindow?.remainingPercent)} · ${formatReset(snapshot?.primaryWindow?.resetAt)}`}</small>
+      <em>{snapshot?.primaryWindowUnlimited ? "无需重置" : `重置 ${formatDateTime(snapshot?.primaryWindow?.resetAt)}`}</em>
     </div>
     <div>
       <span>7d 使用</span>
@@ -138,7 +142,7 @@
     </div>
     <div>
       <span>5h 窗口</span>
-      <strong>{snapshot?.primaryWindow?.windowDurationSeconds ?? "未知"}s</strong>
+      <strong>{snapshot?.primaryWindowUnlimited ? "无限" : snapshot?.primaryWindow?.windowDurationSeconds != null ? `${snapshot.primaryWindow.windowDurationSeconds}s` : "未知"}</strong>
     </div>
     <div>
       <span>7d 窗口</span>

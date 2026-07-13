@@ -93,12 +93,20 @@ fn finalize_snapshot(
     state: &mut StateDocument,
 ) -> CodexUsageSnapshot {
     snapshot.updated_at = Local::now().timestamp();
+    normalize_window_availability(&mut snapshot);
     apply_reset_inference(state, &snapshot);
     state.last_snapshot = Some(snapshot.clone());
     if state.stats_start_at.is_none() {
         state.stats_start_at = Some(snapshot.updated_at);
     }
     snapshot
+}
+
+fn normalize_window_availability(snapshot: &mut CodexUsageSnapshot) {
+    // 查询成功且 7d 窗口存在时，缺少 5h 窗口表示当前套餐不受 5h 限制。
+    snapshot.primary_window_unlimited = snapshot.status == SnapshotStatus::Ok
+        && snapshot.primary_window.is_none()
+        && snapshot.secondary_window.is_some();
 }
 
 fn status_for_auth_error(error: AuthJsonError) -> SnapshotStatus {
@@ -136,5 +144,50 @@ fn reset_period_counters(state: &mut StateDocument) {
         state.reset_stats.week_auto_reset_weekly = 0;
         state.reset_stats.week_manual_reset_consumed = 0;
         state.last_stats_week_start = Some(week_start_text);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn weekly_window() -> UsageWindow {
+        UsageWindow {
+            name: "weekly".to_string(),
+            used_percent: Some(20.0),
+            remaining_percent: Some(80.0),
+            reset_at: None,
+            window_duration_seconds: Some(604_800),
+        }
+    }
+
+    #[test]
+    fn marks_missing_five_hour_window_as_unlimited_after_successful_query() {
+        let mut snapshot = snapshot::empty_snapshot(SnapshotSource::AppServer, SnapshotStatus::Ok);
+        snapshot.secondary_window = Some(weekly_window());
+
+        normalize_window_availability(&mut snapshot);
+
+        assert!(snapshot.primary_window_unlimited);
+    }
+
+    #[test]
+    fn keeps_missing_five_hour_window_unknown_when_query_failed() {
+        let mut snapshot =
+            snapshot::empty_snapshot(SnapshotSource::AuthJson, SnapshotStatus::RequestFailed);
+        snapshot.secondary_window = Some(weekly_window());
+
+        normalize_window_availability(&mut snapshot);
+
+        assert!(!snapshot.primary_window_unlimited);
+    }
+
+    #[test]
+    fn keeps_missing_five_hour_window_unknown_when_all_windows_are_missing() {
+        let mut snapshot = snapshot::empty_snapshot(SnapshotSource::AuthJson, SnapshotStatus::Ok);
+
+        normalize_window_availability(&mut snapshot);
+
+        assert!(!snapshot.primary_window_unlimited);
     }
 }

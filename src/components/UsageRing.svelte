@@ -5,9 +5,10 @@
 
   export let window: UsageWindow | null = null;
   export let label = "";
+  export let unlimited = false;
 
-  $: value = ringValue(window);
-  $: tone = ringTone(window?.usedPercent);
+  $: value = unlimited ? 0 : ringValue(window);
+  $: tone = unlimited ? "ok" : ringTone(window?.usedPercent);
   $: offset = 100 - value;
 </script>
 
@@ -24,6 +25,6 @@
   </svg>
   <div>
     <span>{label}</span>
-    <strong>{formatPercent(window?.usedPercent)}</strong>
+    <strong>{unlimited ? "无限" : formatPercent(window?.usedPercent)}</strong>
   </div>
 </div>

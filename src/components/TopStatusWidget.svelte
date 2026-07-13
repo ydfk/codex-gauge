@@ -12,7 +12,10 @@
   export let onhoverchange: (open: boolean) => void;
 
   $: resetCount = snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知";
-  $: fiveHourTone = valueTone(snapshot?.primaryWindow?.remainingPercent);
+  $: fiveHourUnlimited = snapshot?.primaryWindowUnlimited ?? false;
+  $: fiveHourTone = fiveHourUnlimited
+    ? "tone-full"
+    : valueTone(snapshot?.primaryWindow?.remainingPercent);
   $: weeklyTone = valueTone(snapshot?.secondaryWindow?.remainingPercent);
   let horizontalDrag:
     | {
@@ -125,7 +128,7 @@
   onmouseleave={hideDetails}
 >
   <div class="top-summary">
-    <strong class={fiveHourTone}>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
+    <strong class={fiveHourTone}>5h {fiveHourUnlimited ? "无限" : formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
     <span class={weeklyTone}>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>
     <em>重置 {resetCount}</em>
   </div>
@@ -134,8 +137,8 @@
     <div class="top-hover-details" role="status">
       <div class="top-hover-row">
         <span>5h</span>
-        <strong>剩 {formatPercent(snapshot?.primaryWindow?.remainingPercent)} · 用 {formatPercent(snapshot?.primaryWindow?.usedPercent)}</strong>
-        <small>重置 {formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}</small>
+        <strong>{fiveHourUnlimited ? "无限" : `剩 ${formatPercent(snapshot?.primaryWindow?.remainingPercent)} · 用 ${formatPercent(snapshot?.primaryWindow?.usedPercent)}`}</strong>
+        <small>{fiveHourUnlimited ? "无需重置" : `重置 ${formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}`}</small>
       </div>
       <div class="top-hover-row">
         <span>7d</span>

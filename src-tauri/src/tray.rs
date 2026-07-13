@@ -346,26 +346,35 @@ fn default_tooltip() -> &'static str {
 }
 
 fn snapshot_tooltip(snapshot: &CodexUsageSnapshot) -> String {
+    let five_hour = if snapshot.primary_window_unlimited {
+        "5h: 无限".to_string()
+    } else {
+        format!(
+            "5h: 剩{} 用{} 重{}",
+            percent(
+                snapshot
+                    .primary_window
+                    .as_ref()
+                    .and_then(|window| window.remaining_percent)
+            ),
+            percent(
+                snapshot
+                    .primary_window
+                    .as_ref()
+                    .and_then(|window| window.used_percent)
+            ),
+            compact_time(
+                snapshot
+                    .primary_window
+                    .as_ref()
+                    .and_then(|window| window.reset_at)
+            ),
+        )
+    };
+
     format!(
-        "5h: 剩{} 用{} 重{}\n7d: 剩{} 用{} 重{}\n重置: {} · {}",
-        percent(
-            snapshot
-                .primary_window
-                .as_ref()
-                .and_then(|window| window.remaining_percent)
-        ),
-        percent(
-            snapshot
-                .primary_window
-                .as_ref()
-                .and_then(|window| window.used_percent)
-        ),
-        compact_time(
-            snapshot
-                .primary_window
-                .as_ref()
-                .and_then(|window| window.reset_at)
-        ),
+        "{}\n7d: 剩{} 用{} 重{}\n重置: {} · {}",
+        five_hour,
         percent(
             snapshot
                 .secondary_window

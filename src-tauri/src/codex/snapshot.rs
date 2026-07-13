@@ -62,6 +62,8 @@ pub struct CodexUsageSnapshot {
     pub status: SnapshotStatus,
     pub plan_type: Option<String>,
     pub primary_window: Option<UsageWindow>,
+    #[serde(default)]
+    pub primary_window_unlimited: bool,
     pub secondary_window: Option<UsageWindow>,
     pub credits: Option<UsageCredits>,
     pub rate_limit_reached_type: Option<String>,
@@ -74,6 +76,7 @@ pub fn empty_snapshot(source: SnapshotSource, status: SnapshotStatus) -> CodexUs
         status,
         plan_type: None,
         primary_window: None,
+        primary_window_unlimited: false,
         secondary_window: None,
         credits: None,
         rate_limit_reached_type: None,

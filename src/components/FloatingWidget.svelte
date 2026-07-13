@@ -9,13 +9,18 @@
   export let onopen: () => void;
   export let onmenu: (event: MouseEvent) => void;
 
-  $: fiveHourWidth = barWidth(snapshot?.primaryWindow?.remainingPercent);
+  $: fiveHourUnlimited = snapshot?.primaryWindowUnlimited ?? false;
+  $: fiveHourWidth = fiveHourUnlimited
+    ? "100%"
+    : barWidth(snapshot?.primaryWindow?.remainingPercent);
   $: weeklyWidth = barWidth(snapshot?.secondaryWindow?.remainingPercent);
-  $: fiveHourTone = meterTone(snapshot?.primaryWindow?.remainingPercent);
+  $: fiveHourTone = fiveHourUnlimited
+    ? "tone-full"
+    : meterTone(snapshot?.primaryWindow?.remainingPercent);
   $: weeklyTone = meterTone(snapshot?.secondaryWindow?.remainingPercent);
   $: resetCount = snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知";
   $: usedSummary = snapshot
-    ? `5h已用 ${formatPercent(snapshot.primaryWindow?.usedPercent)} · 7d已用 ${formatPercent(snapshot.secondaryWindow?.usedPercent)}`
+    ? `${fiveHourUnlimited ? "5h 无限" : `5h已用 ${formatPercent(snapshot.primaryWindow?.usedPercent)}`} · 7d已用 ${formatPercent(snapshot.secondaryWindow?.usedPercent)}`
     : statusText(snapshot);
   $: headerStatus = message || usedSummary;
 
@@ -99,12 +104,12 @@
       <div class="usage-line">
         <div class="usage-card-head">
           <span>5h</span>
-          <strong>{formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
+          <strong>{fiveHourUnlimited ? "无限" : formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
         </div>
         <div class={`segmented-meter ${fiveHourTone}`}>
           <span style={`width: ${fiveHourWidth}`}></span>
         </div>
-        <small>{formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}</small>
+        <small>{fiveHourUnlimited ? "无需重置" : formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}</small>
       </div>
       <div class="usage-line">
         <div class="usage-card-head">
