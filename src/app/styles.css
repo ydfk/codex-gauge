@@ -830,10 +830,11 @@ h1 {
 
 .credit-list {
   grid-template-columns: 1fr;
-  max-height: 80px;
+  max-height: 158px;
   margin-top: 8px;
   margin-bottom: 48px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .credit-list div {

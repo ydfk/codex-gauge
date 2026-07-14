@@ -19,6 +19,29 @@
 
   let dragStart: { x: number; y: number; dragging: boolean } | null = null;
   let dragging = false;
+  $: resetCount = snapshot?.credits?.availableCount ?? "未知";
+
+  function creditTitleText(title: string | null | undefined) {
+    if (!title) return "重置券";
+    if (title.toLowerCase().includes("full reset")) return "完整重置（5h + 7d）";
+    return title;
+  }
+
+  function creditStatusText(status: string | null | undefined) {
+    if (!status) return "状态未提供";
+    if (status === "available") return "可用";
+    if (status === "consumed" || status === "used") return "已使用";
+    if (status === "expired") return "已过期";
+    return status;
+  }
+
+  function rateLimitText(value: string | null | undefined) {
+    if (!value) return "未触发";
+    const normalized = value.toLowerCase();
+    if (normalized.includes("primary")) return "5h 限额";
+    if (normalized.includes("secondary")) return "7d 限额";
+    return value;
+  }
 
   function handlePointerDown(event: PointerEvent) {
     if (event.button !== 0 || (event.target as HTMLElement).closest("button, input")) return;
@@ -67,8 +90,8 @@
       <h1>Codex Gauge</h1>
       <div class="hero-meta">
         <span>{statusText(snapshot)}</span>
-        <span>{snapshot?.planType ?? "未知计划"}</span>
-        <span>Credits {snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知"}</span>
+        <span>计划 {snapshot?.planType ?? "未提供"}</span>
+        <span>重置次数 {resetCount}</span>
       </div>
     </div>
     <div class="panel-actions">
@@ -125,35 +148,19 @@
 
   <div class="metric-grid">
     <div>
-      <span>Credits</span>
-      <strong>{snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知"}</strong>
+      <span>可用重置次数</span>
+      <strong>{resetCount}</strong>
     </div>
     <div>
-      <span>Credit Reset</span>
-      <strong>{formatDateTime(snapshot?.credits?.resetAt)}</strong>
+      <span>计划</span>
+      <strong>{snapshot?.planType ?? "未提供"}</strong>
     </div>
     <div>
-      <span>Plan</span>
-      <strong>{snapshot?.planType ?? "未知"}</strong>
+      <span>限额状态</span>
+      <strong>{rateLimitText(snapshot?.rateLimitReachedType)}</strong>
     </div>
     <div>
-      <span>状态</span>
-      <strong>{statusText(snapshot)}</strong>
-    </div>
-    <div>
-      <span>5h 窗口</span>
-      <strong>{snapshot?.primaryWindowUnlimited ? "无限" : snapshot?.primaryWindow?.windowDurationSeconds != null ? `${snapshot.primaryWindow.windowDurationSeconds}s` : "未知"}</strong>
-    </div>
-    <div>
-      <span>7d 窗口</span>
-      <strong>{snapshot?.secondaryWindow?.windowDurationSeconds ?? "未知"}s</strong>
-    </div>
-    <div>
-      <span>触发类型</span>
-      <strong>{snapshot?.rateLimitReachedType ?? "无"}</strong>
-    </div>
-    <div>
-      <span>来源</span>
+      <span>数据来源</span>
       <strong>{sourceText(snapshot)}</strong>
     </div>
   </div>
@@ -162,16 +169,16 @@
     {#if snapshot?.credits?.items?.length}
       {#each snapshot.credits.items as credit}
         <div>
-          <span>{credit.title ?? "未知标题"}</span>
-          <strong>{credit.status ?? "未知状态"}</strong>
-          <small>Granted {credit.grantedAt ?? "未知"}</small>
-          <em>Expires {credit.expiresAt ?? "未知"}</em>
+          <span>{creditTitleText(credit.title)}</span>
+          <strong>{creditStatusText(credit.status)}</strong>
+          <small>获得时间 {credit.grantedAt ?? "未提供"}</small>
+          <em>到期时间 {credit.expiresAt ?? "未提供"}</em>
         </div>
       {/each}
     {:else}
       <div>
-        <span>Credit 明细</span>
-        <strong>未知</strong>
+        <span>重置券明细</span>
+        <strong>{snapshot?.credits?.availableCount === 0 ? "暂无" : "未提供"}</strong>
       </div>
     {/if}
   </div>

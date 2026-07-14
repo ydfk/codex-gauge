@@ -133,18 +133,28 @@ fn label_for_duration(duration: Option<i64>) -> &'static str {
 }
 
 fn first_string(root: &Value, keys: &[&str]) -> Option<String> {
-    keys.iter()
-        .find_map(|key| value_at(root, key).and_then(Value::as_str))
-        .map(ToString::to_string)
-}
-
-fn value_at<'a>(root: &'a Value, key: &str) -> Option<&'a Value> {
-    if key.contains('.') {
-        let pointer = format!("/{}", key.replace('.', "/"));
-        root.pointer(&pointer)
-    } else {
-        root.get(key)
+    if let Some(object) = root.as_object() {
+        for key in keys {
+            if let Some(value) = object.get(*key).and_then(Value::as_str) {
+                return Some(value.to_string());
+            }
+        }
+        for child in object.values() {
+            if let Some(value) = first_string(child, keys) {
+                return Some(value);
+            }
+        }
     }
+
+    if let Some(items) = root.as_array() {
+        for item in items {
+            if let Some(value) = first_string(item, keys) {
+                return Some(value);
+            }
+        }
+    }
+
+    None
 }
 
 fn value_to_i64(value: &Value) -> Option<i64> {
@@ -208,5 +218,18 @@ mod tests {
 
         assert_eq!(parsed.five_hour.unwrap().used_percent, Some(12.0));
         assert_eq!(parsed.weekly.unwrap().used_percent, Some(27.0));
+    }
+
+    #[test]
+    fn parses_plan_type_from_nested_account() {
+        let parsed = parse_account(&json!({
+            "result": {
+                "account": {
+                    "planType": "plus"
+                }
+            }
+        }));
+
+        assert_eq!(parsed.plan_type.as_deref(), Some("plus"));
     }
 }
