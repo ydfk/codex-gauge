@@ -222,13 +222,6 @@ jobs:
       CARGO_TERM_COLOR: always
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -278,14 +271,19 @@ jobs:
       - name: Detect Apple signing configuration
         id: apple_signing
         shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           signing=true
-          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_KEYCHAIN_PASSWORD APPLE_SIGNING_IDENTITY; do
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD; do
             [[ -n "${!name}" ]] || signing=false
           done
           echo "enabled=$signing" >> "$GITHUB_OUTPUT"
           if [[ "$signing" != "true" ]]; then
-            echo "APPLE_SIGNING_IDENTITY=" >> "$GITHUB_ENV"
             echo "Apple signing secrets are incomplete; an unsigned macOS bundle will still be published."
           fi
 
@@ -295,25 +293,8 @@ jobs:
           done
           echo "notarization=$notarization" >> "$GITHUB_OUTPUT"
           if [[ "$notarization" != "true" ]]; then
-            echo "APPLE_ID=" >> "$GITHUB_ENV"
-            echo "APPLE_PASSWORD=" >> "$GITHUB_ENV"
-            echo "APPLE_TEAM_ID=" >> "$GITHUB_ENV"
             echo "Apple notarization secrets are incomplete; notarization will be skipped."
           fi
-
-      - name: Import Apple signing certificate
-        if: steps.apple_signing.outputs.enabled == 'true'
-        shell: bash
-        run: |
-          certificate_path="$RUNNER_TEMP/codex-gauge.p12"
-          keychain_path="$RUNNER_TEMP/codex-gauge.keychain-db"
-          echo "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
-          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
-          security import "$certificate_path" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
-          security set-key-partition-list -S apple-tool:,apple: -k "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
-          security list-keychain -d user -s "$keychain_path"
 
       - name: Prepare release config
         shell: bash
@@ -336,7 +317,26 @@ jobs:
           NODE
 
       - name: Build macOS arm64 bundles
-        run: pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [[ "${{ steps.apple_signing.outputs.enabled }}" != "true" ]]; then
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY
+          elif [[ -z "$APPLE_SIGNING_IDENTITY" ]]; then
+            unset APPLE_SIGNING_IDENTITY
+          fi
+
+          if [[ "${{ steps.apple_signing.outputs.notarization }}" != "true" ]]; then
+            unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+          fi
+
+          pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg
 
       - name: Normalize macOS release asset names
         shell: bash

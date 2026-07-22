@@ -44,8 +44,7 @@ CI 依次生成 Windows x64 和 macOS arm64 产物，并上传到同一个 GitHu
 
 - `APPLE_CERTIFICATE`：base64 编码的 `.p12` 证书
 - `APPLE_CERTIFICATE_PASSWORD`
-- `APPLE_KEYCHAIN_PASSWORD`
-- `APPLE_SIGNING_IDENTITY`
+- `APPLE_SIGNING_IDENTITY`：可选，未设置时由 Tauri 从证书推断
 - `APPLE_ID`
 - `APPLE_PASSWORD`：Apple ID app-specific password
 - `APPLE_TEAM_ID`
