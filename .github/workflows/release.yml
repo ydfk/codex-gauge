@@ -213,3 +213,165 @@ jobs:
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/latest.json
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.zip
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.sig
+
+  macos-arm64:
+    name: macOS Apple Silicon
+    needs: windows-x64
+    runs-on: macos-14
+    env:
+      CARGO_TERM_COLOR: always
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        run: |
+          tag="${{ github.ref_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ inputs.tag }}"
+          fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag must be SemVer, for example v0.1.0" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-arm64-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-arm64-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Detect Apple signing configuration
+        id: apple_signing
+        shell: bash
+        run: |
+          signing=true
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_KEYCHAIN_PASSWORD APPLE_SIGNING_IDENTITY; do
+            [[ -n "${!name}" ]] || signing=false
+          done
+          echo "enabled=$signing" >> "$GITHUB_OUTPUT"
+          if [[ "$signing" != "true" ]]; then
+            echo "APPLE_SIGNING_IDENTITY=" >> "$GITHUB_ENV"
+            echo "Apple signing secrets are incomplete; an unsigned macOS bundle will still be published."
+          fi
+
+          notarization=$signing
+          for name in APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            [[ -n "${!name}" ]] || notarization=false
+          done
+          echo "notarization=$notarization" >> "$GITHUB_OUTPUT"
+          if [[ "$notarization" != "true" ]]; then
+            echo "APPLE_ID=" >> "$GITHUB_ENV"
+            echo "APPLE_PASSWORD=" >> "$GITHUB_ENV"
+            echo "APPLE_TEAM_ID=" >> "$GITHUB_ENV"
+            echo "Apple notarization secrets are incomplete; notarization will be skipped."
+          fi
+
+      - name: Import Apple signing certificate
+        if: steps.apple_signing.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          certificate_path="$RUNNER_TEMP/codex-gauge.p12"
+          keychain_path="$RUNNER_TEMP/codex-gauge.keychain-db"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: -k "$APPLE_KEYCHAIN_PASSWORD" "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
+
+      - name: Prepare release config
+        shell: bash
+        env:
+          TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY || secrets.TAURI_UPDATER_PUBKEY }}
+        run: |
+          pnpm version:sync "${{ steps.meta.outputs.tag }}"
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from "node:fs/promises";
+          const path = "src-tauri/tauri.conf.json";
+          const config = JSON.parse(await readFile(path, "utf8"));
+          config.plugins.updater.endpoints = [
+            "https://github.com/${{ github.repository }}/releases/latest/download/latest.json",
+          ];
+          const enabled = Boolean(process.env.TAURI_UPDATER_PUBKEY && process.env.TAURI_SIGNING_PRIVATE_KEY);
+          config.bundle.createUpdaterArtifacts = enabled;
+          if (enabled) config.plugins.updater.pubkey = process.env.TAURI_UPDATER_PUBKEY;
+          await writeFile(path, `${JSON.stringify(config, null, 2)}\n`);
+          await writeFile(process.env.GITHUB_ENV, `CODEX_GAUGE_UPDATER_ARTIFACTS=${enabled}\n`, { flag: "a" });
+          NODE
+
+      - name: Build macOS arm64 bundles
+        run: pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg
+
+      - name: Normalize macOS release asset names
+        shell: bash
+        run: |
+          bundle_path="src-tauri/target/aarch64-apple-darwin/release/bundle"
+          find "$bundle_path" -type f -name '* *' -print0 | while IFS= read -r -d '' file; do
+            normalized="${file// /.}"
+            mv "$file" "$normalized"
+          done
+
+      - name: Merge macOS updater entry
+        if: env.CODEX_GAUGE_UPDATER_ARTIFACTS == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bundle_path="src-tauri/target/aarch64-apple-darwin/release/bundle"
+          manifest="$bundle_path/latest.json"
+          gh release download "${{ steps.meta.outputs.tag }}" --pattern latest.json --dir "$bundle_path" --clobber
+          asset=$(find "$bundle_path" -type f -name '*.app.tar.gz' | head -n 1)
+          if [[ -z "$asset" || ! -f "$asset.sig" ]]; then
+            echo "Missing signed macOS updater archive." >&2
+            exit 1
+          fi
+          asset_name=$(basename "$asset")
+          encoded_name=$(node -p 'encodeURIComponent(process.argv[1])' "$asset_name")
+          url="https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/$encoded_name"
+          node scripts/merge-updater-manifest.mjs "$manifest" darwin-aarch64 "$asset.sig" "$url"
+
+      - name: Upload macOS assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          files: |
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+            src-tauri/target/aarch64-apple-darwin/release/bundle/latest.json

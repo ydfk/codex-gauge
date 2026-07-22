@@ -4,6 +4,7 @@
   import { onMount } from "svelte";
   import DetailPanel from "../components/DetailPanel.svelte";
   import FloatingWidget from "../components/FloatingWidget.svelte";
+  import MacMenuPanel from "../components/MacMenuPanel.svelte";
   import SettingsPanel from "../components/SettingsPanel.svelte";
   import TopStatusWidget from "../components/TopStatusWidget.svelte";
   import {
@@ -29,6 +30,7 @@
   let config: AppConfig | null = null;
   let message = "";
   let updateStatus: UpdateCheckResult | null = null;
+  let lastUpdateCheckAt = 0;
   let appVersion = "";
   let refreshTimer: number | null = null;
   let oledTimer: number | null = null;
@@ -36,12 +38,14 @@
   let oledOffset = { x: 0, y: 0 };
   let contextMenu: { x: number; y: number } | null = null;
   let topDetailsOpen = false;
+  let macPanelView: "detail" | "settings" = "detail";
   const currentWindow = getCurrentWindow();
   const windowLabel = currentWindow.label;
   const isTopWindow = windowLabel === "top";
   const isMainWindow = windowLabel === "main";
   const isDetailWindow = windowLabel === "detail";
   const isSettingsWindow = windowLabel === "settings";
+  const isMacMenuWindow = windowLabel === "menubar";
   const isOledWindow = isMainWindow || isTopWindow;
   $: currentAlwaysOnTop = isTopWindow
     ? (config?.general.topAlwaysOnTop ?? false)
@@ -62,12 +66,30 @@
       listen("codex-gauge-check-update", () => void checkForUpdate(false)),
       listen("codex-gauge-install-update", () => void installAvailableUpdate()),
       listen("codex-gauge-config-updated", () => void reloadConfig()),
+      listen<CodexUsageSnapshot>("codex-gauge-snapshot-updated", (event) => {
+        snapshot = event.payload;
+        message = "";
+      }),
+      listen("codex-gauge-open-macos-settings", () => {
+        macPanelView = "settings";
+      }),
+      listen("codex-gauge-open-macos-detail", () => {
+        macPanelView = "detail";
+        if (config?.update.autoCheck && Date.now() - lastUpdateCheckAt >= 15 * 60 * 1000) {
+          void checkForUpdate(true);
+        }
+      }),
     ];
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (isMacMenuWindow && event.key === "Escape") void hideWindow("menubar");
+    };
+    window.addEventListener("keydown", handleKeydown);
 
     return () => {
       if (refreshTimer) window.clearInterval(refreshTimer);
       if (oledTimer) window.clearInterval(oledTimer);
       void resetOledShift();
+      window.removeEventListener("keydown", handleKeydown);
       void Promise.all(unlisteners).then((items) => items.forEach((unlisten) => unlisten()));
     };
   });
@@ -77,7 +99,7 @@
       [config, appVersion] = await Promise.all([getConfig(), getAppVersion()]);
       if (isMainWindow) await setWindowMode(false);
       await refresh();
-      if (isMainWindow && config.update.autoCheck) void checkForUpdate(true);
+      if ((isMainWindow || isMacMenuWindow) && config.update.autoCheck) void checkForUpdate(true);
       scheduleRefresh();
       scheduleOledShift();
     } catch {
@@ -96,6 +118,7 @@
 
   async function checkForUpdate(silent: boolean) {
     if (isTopWindow || isDetailWindow) return;
+    lastUpdateCheckAt = Date.now();
     try {
       if (!silent) message = "检查更新中";
       updateStatus = await checkUpdate();
@@ -118,6 +141,8 @@
 
   function scheduleRefresh() {
     if (refreshTimer) window.clearInterval(refreshTimer);
+    refreshTimer = null;
+    if (isMacMenuWindow) return;
     const seconds = config?.general.refreshIntervalSeconds ?? 60;
     refreshTimer = window.setInterval(() => void refresh(), Math.max(30, seconds) * 1000);
   }
@@ -228,6 +253,7 @@
 
   function openContextMenu(event: MouseEvent) {
     event.preventDefault();
+    if (isMacMenuWindow) return;
     const width = 160;
     const height = 58;
     const x = Math.max(4, Math.min(event.clientX, window.innerWidth - width - 4));
@@ -280,11 +306,28 @@
   class:context-open={!!contextMenu}
   class:panel-window={isDetailWindow || isSettingsWindow}
   class:settings-window={isSettingsWindow}
+  class:macos-menubar-window={isMacMenuWindow}
   style={`--panel-opacity: ${config?.general.opacity ?? 0.92}`}
   onpointerdown={closeContextMenu}
   oncontextmenu={openContextMenu}
 >
-  {#if isTopWindow}
+  {#if isMacMenuWindow}
+    <MacMenuPanel
+      {snapshot}
+      {config}
+      {appVersion}
+      {updateStatus}
+      {message}
+      view={macPanelView}
+      onviewchange={(view) => (macPanelView = view)}
+      onsave={updateConfig}
+      onrefresh={refresh}
+      onlogin={openCodexLogin}
+      oncheckupdate={() => checkForUpdate(false)}
+      oninstallupdate={installAvailableUpdate}
+      onquit={() => void quitApp()}
+    />
+  {:else if isTopWindow}
     <TopStatusWidget
       {snapshot}
       locked={config?.general.topLockPosition ?? false}

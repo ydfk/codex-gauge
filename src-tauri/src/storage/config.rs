@@ -8,6 +8,8 @@ pub struct AppConfig {
     pub codex: CodexConfig,
     pub update: UpdateConfig,
     pub window: WindowConfig,
+    #[serde(default)]
+    pub macos: MacosConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,10 +65,25 @@ pub struct WindowConfig {
     pub height: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MacosConfig {
+    #[serde(default = "default_menu_bar_display")]
+    pub menu_bar_display: String,
+}
+
+impl Default for MacosConfig {
+    fn default() -> Self {
+        Self {
+            menu_bar_display: default_menu_bar_display(),
+        }
+    }
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            version: 9,
+            version: 11,
             general: GeneralConfig {
                 start_on_boot: false,
                 show_on_startup: true,
@@ -99,6 +116,7 @@ impl Default for AppConfig {
                 width: 430.0,
                 height: 104.0,
             },
+            macos: MacosConfig::default(),
         }
     }
 }
@@ -135,6 +153,22 @@ impl AppConfig {
         if self.version < 9 {
             self.version = 9;
         }
+        if self.version < 10 {
+            self.macos = MacosConfig::default();
+            self.version = 10;
+        }
+        if self.version < 11 {
+            if self.macos.menu_bar_display == "fiveHour" {
+                self.macos.menu_bar_display = default_menu_bar_display();
+            }
+            self.version = 11;
+        }
+        if !matches!(
+            self.macos.menu_bar_display.as_str(),
+            "fiveHour" | "iconOnly" | "fiveAndSeven"
+        ) {
+            self.macos.menu_bar_display = default_menu_bar_display();
+        }
     }
 }
 
@@ -146,6 +180,37 @@ fn default_provider() -> String {
     "app-server".to_string()
 }
 
+fn default_menu_bar_display() -> String {
+    "fiveAndSeven".to_string()
+}
+
 pub fn default_update_endpoint() -> String {
     "https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalizes_unknown_macos_menu_bar_mode() {
+        let mut config = AppConfig::default();
+        config.macos.menu_bar_display = "wide".to_string();
+
+        config.migrate();
+
+        assert_eq!(config.macos.menu_bar_display, "fiveAndSeven");
+    }
+
+    #[test]
+    fn migrates_macos_menu_bar_to_show_both_windows() {
+        let mut config = AppConfig::default();
+        config.version = 10;
+        config.macos.menu_bar_display = "fiveHour".to_string();
+
+        config.migrate();
+
+        assert_eq!(config.version, 11);
+        assert_eq!(config.macos.menu_bar_display, "fiveAndSeven");
+    }
 }

@@ -16,6 +16,8 @@ pub(super) fn update_indicator(
         base_icon
     };
     let _ = tray.set_icon(Some(icon));
+    #[cfg(target_os = "macos")]
+    let _ = tray.set_icon_as_template(false);
 
     let usage = app
         .try_state::<AppState>()
@@ -25,6 +27,12 @@ pub(super) fn update_indicator(
     let _ = tray.set_tooltip(Some(tooltip_with_update(usage, update)));
 }
 
+#[cfg(target_os = "macos")]
+pub(super) fn base_tray_icon(_app: &AppHandle) -> Image<'static> {
+    macos_tray_icon()
+}
+
+#[cfg(not(target_os = "macos"))]
 pub(super) fn base_tray_icon(app: &AppHandle) -> Image<'static> {
     app.default_window_icon()
         .cloned()
@@ -32,6 +40,53 @@ pub(super) fn base_tray_icon(app: &AppHandle) -> Image<'static> {
         .unwrap_or_else(|| {
             Image::from_bytes(include_bytes!("../../icons/tray.png")).expect("tray icon")
         })
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn macos_tray_icon() -> Image<'static> {
+    const SIZE: u32 = 36;
+    let source = Image::from_bytes(include_bytes!("../../icons/tray.png")).expect("tray icon");
+    let source_width = source.width();
+    let source_height = source.height();
+    let source_rgba = source.rgba();
+    let mut rgba = vec![0; (SIZE * SIZE * 4) as usize];
+
+    for y in 0..SIZE {
+        for x in 0..SIZE {
+            let start_x = x * source_width / SIZE;
+            let end_x = ((x + 1) * source_width).div_ceil(SIZE);
+            let start_y = y * source_height / SIZE;
+            let end_y = ((y + 1) * source_height).div_ceil(SIZE);
+            let mut alpha_sum = 0u64;
+            let mut red_sum = 0u64;
+            let mut green_sum = 0u64;
+            let mut blue_sum = 0u64;
+            let mut sample_count = 0u64;
+
+            for source_y in start_y..end_y.min(source_height) {
+                for source_x in start_x..end_x.min(source_width) {
+                    let source_offset = ((source_y * source_width + source_x) * 4) as usize;
+                    let pixel = &source_rgba[source_offset..source_offset + 4];
+                    let alpha = pixel[3] as u64;
+                    alpha_sum += alpha;
+                    red_sum += pixel[0] as u64 * alpha;
+                    green_sum += pixel[1] as u64 * alpha;
+                    blue_sum += pixel[2] as u64 * alpha;
+                    sample_count += 1;
+                }
+            }
+
+            let offset = ((y * SIZE + x) * 4) as usize;
+            if alpha_sum > 0 {
+                rgba[offset] = (red_sum / alpha_sum) as u8;
+                rgba[offset + 1] = (green_sum / alpha_sum) as u8;
+                rgba[offset + 2] = (blue_sum / alpha_sum) as u8;
+            }
+            rgba[offset + 3] = (alpha_sum / sample_count.max(1)) as u8;
+        }
+    }
+
+    Image::new_owned(rgba, SIZE, SIZE)
 }
 
 pub(super) fn tooltip_with_update(usage: String, update: Option<&UpdateCheckResult>) -> String {
@@ -133,5 +188,29 @@ mod tests {
             .rgba()
             .chunks_exact(4)
             .any(|pixel| pixel == [112, 235, 198, 255]));
+    }
+
+    #[test]
+    fn keeps_windows_tray_colors_in_macos_icon() {
+        let icon = macos_tray_icon();
+        let pixels = icon.rgba().chunks_exact(4);
+        let has_dark_background = pixels
+            .clone()
+            .any(|pixel| pixel[3] > 180 && pixel[0].max(pixel[1]).max(pixel[2]) < 80);
+        let has_mint_ring = pixels
+            .clone()
+            .any(|pixel| pixel[3] > 180 && pixel[1] > 170 && pixel[1] > pixel[0]);
+        let has_white_g = pixels
+            .clone()
+            .any(|pixel| pixel[3] > 180 && pixel[0].min(pixel[1]).min(pixel[2]) > 200);
+        let has_orange_dot = pixels
+            .clone()
+            .any(|pixel| pixel[3] > 180 && pixel[0] > 200 && pixel[1] > 100 && pixel[2] < 140);
+
+        assert_eq!((icon.width(), icon.height()), (36, 36));
+        assert!(has_dark_background);
+        assert!(has_mint_ring);
+        assert!(has_white_g);
+        assert!(has_orange_dot);
     }
 }

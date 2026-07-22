@@ -11,6 +11,8 @@ pub const EXPANDED_HEIGHT: u32 = 640;
 pub const TOP_WIDTH: u32 = 168;
 pub const TOP_HEIGHT: u32 = 26;
 pub const TOP_MENU_HEIGHT: u32 = 108;
+pub const MENUBAR_WIDTH: u32 = 360;
+pub const MENUBAR_HEIGHT: u32 = 480;
 
 const DEFAULT_TOP_MARGIN: i32 = 28;
 const TOP_STATUS_MARGIN: i32 = 0;
@@ -128,6 +130,85 @@ pub fn setup_panel_windows(app: &AppHandle) {
             }
         });
     }
+}
+
+pub fn setup_menubar_window(app: &AppHandle) -> tauri::Result<()> {
+    let Some(window) = app.get_webview_window("menubar") else {
+        return Ok(());
+    };
+
+    window.set_size(LogicalSize::new(MENUBAR_WIDTH, MENUBAR_HEIGHT))?;
+    window.set_always_on_top(true)?;
+    let _ = window.set_shadow(true);
+
+    #[cfg(target_os = "macos")]
+    let app_handle = app.clone();
+    let panel = window.clone();
+    window.on_window_event(move |event| match event {
+        WindowEvent::CloseRequested { api, .. } => {
+            api.prevent_close();
+            let _ = panel.hide();
+        }
+        WindowEvent::Focused(false) => {
+            #[cfg(target_os = "macos")]
+            app_handle.state::<AppState>().mark_menubar_blurred();
+            let _ = panel.hide();
+        }
+        _ => {}
+    });
+
+    Ok(())
+}
+
+pub fn show_menubar_window(app: &AppHandle, anchor: Option<(f64, f64)>) {
+    let Some(window) = app.get_webview_window("menubar") else {
+        return;
+    };
+
+    place_menubar_window(&window, anchor);
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+fn place_menubar_window(window: &WebviewWindow, anchor: Option<(f64, f64)>) {
+    let monitors = window.available_monitors().unwrap_or_default();
+    let monitor = anchor
+        .and_then(|(x, y)| {
+            monitors.iter().find(|monitor| {
+                let origin = monitor.position();
+                let size = monitor.size();
+                x >= origin.x as f64
+                    && x < (origin.x + size.width as i32) as f64
+                    && y >= origin.y as f64
+                    && y < (origin.y + size.height as i32) as f64
+            })
+        })
+        .or_else(|| monitors.first());
+    let Some(monitor) = monitor else {
+        return;
+    };
+
+    let origin = monitor.position();
+    let size = monitor.size();
+    let scale = monitor.scale_factor();
+    let panel_width = (MENUBAR_WIDTH as f64 * scale).round() as i32;
+    let panel_height = (MENUBAR_HEIGHT as f64 * scale).round() as i32;
+    let inset = (8.0 * scale).round() as i32;
+    let menu_bar_bottom = origin.y + (24.0 * scale).round() as i32;
+    let min_x = origin.x + inset;
+    let max_x = (origin.x + size.width as i32 - panel_width - inset).max(min_x);
+    let max_y = (origin.y + size.height as i32 - panel_height - inset).max(menu_bar_bottom);
+
+    let anchor_x = anchor
+        .map(|(x, _)| x.round() as i32)
+        .unwrap_or(origin.x + size.width as i32 - panel_width / 2 - inset);
+    let anchor_y = anchor
+        .map(|(_, y)| y.round() as i32 + (12.0 * scale).round() as i32)
+        .unwrap_or(menu_bar_bottom);
+    let x = (anchor_x - panel_width / 2).clamp(min_x, max_x);
+    let y = anchor_y.max(menu_bar_bottom).min(max_y);
+
+    let _ = window.set_position(PhysicalPosition::new(x, y));
 }
 
 fn place_main_window(window: &WebviewWindow, x: Option<i32>, y: Option<i32>) {

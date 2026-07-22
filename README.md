@@ -13,11 +13,12 @@
   <img alt="Svelte" src="https://img.shields.io/badge/Svelte-5-ff3e00?style=flat-square&logo=svelte&logoColor=white" />
   <img alt="Rust" src="https://img.shields.io/badge/Rust-stable-000000?style=flat-square&logo=rust&logoColor=white" />
   <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-0078d4?style=flat-square&logo=windows&logoColor=white" />
+  <img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS-Apple_Silicon-111111?style=flat-square&logo=apple&logoColor=white" />
 </p>
 
 ## Overview
 
-Codex Gauge 是一个本机桌面监控工具，使用 Tauri v2、Svelte、TypeScript 和 Rust 构建。它提供一个桌面浮窗和一个顶部迷你状态条，用于快速查看 Codex 当前用量。
+Codex Gauge 是一个本机桌面监控工具，使用 Tauri v2、Svelte、TypeScript 和 Rust 构建。Windows 提供桌面浮窗和顶部迷你状态条；macOS 作为纯菜单栏应用运行，单击右上角状态项即可查看详细用量。
 
 默认数据来源是本机 `codex app-server`；当 app-server 不可用时，可以回退到本机 Codex 登录状态的 AuthJson Provider。重置次数目前只能通过 AuthJson API 查询。
 
@@ -36,27 +37,30 @@ Codex Gauge 是一个本机桌面监控工具，使用 Tauri v2、Svelte、TypeS
 - 本地 JSON 配置、状态和历史记录
 - 可选开机启动、OLED 防烧屏微位移、顶部状态条开关
 - GitHub Releases 手动检查更新
-- GitHub Actions Windows x64 打包发布
+- GitHub Actions 自动打包 Windows x64 和 macOS arm64
+- macOS 菜单栏状态、单面板详情、登录时启动和应用内更新
 
 ## Screens
 
-当前应用包含两个常驻窗口：
+Windows 包含两个常驻窗口：
 
 - **桌面浮窗**：显示 Codex、5h/7d 进度条、重置时间和重置次数
 - **顶部状态条**：默认位于桌面顶部中心，只显示关键状态
 
 两个窗口都支持右键菜单。桌面浮窗默认不置顶，顶部状态条默认置顶。
 
+macOS 不创建桌面浮窗，也不显示 Dock 图标。菜单栏直接使用 Windows 托盘图标的深色圆底、薄荷色圆环、白色 G 和橙色提示点，并默认同时显示 `5h` 和 `7d` 剩余比例；单击后在状态项下方展开详细用量、重置次数、数据来源和设置，百分比状态色与 Windows 保持一致。检测到新版本时，详情面板会提示并支持点击安装、自动重启。
+
 ## Requirements
 
-- Windows 10/11 x64
+- Windows 10/11 x64，或 macOS 12+ Apple Silicon
 - Node.js 26+
 - pnpm 11+
 - Rust stable
 - Codex CLI 或 Codex Desktop 的本机登录状态
 
 > [!NOTE]
-> 当前 CI 只打包 Windows x64。Tauri 项目结构保留跨平台基础，但 macOS 尚未作为发布目标验证。
+> macOS 首发只提供 Apple Silicon 构建，不提供 Intel 或 Universal 安装包。
 
 ## Getting Started
 
@@ -71,6 +75,22 @@ pnpm install
 ```bash
 pnpm dev:desktop
 ```
+
+macOS Apple Silicon 开发时建议先检查环境，再启动菜单栏应用：
+
+```bash
+pnpm mac:doctor
+pnpm mac:dev
+```
+
+运行完整检查并生成可手动测试的调试版 `.app`：
+
+```bash
+pnpm mac:test
+pnpm mac:open
+```
+
+`mac:test` 会检查前端和 Rust、构建 arm64 `.app`，并验证应用不显示 Dock 图标。`mac:open` 会打开该应用，终端同时输出菜单栏交互检查清单。
 
 本地打包：
 
@@ -118,6 +138,12 @@ Windows 默认写入目录：
 %APPDATA%\CodexGauge\
 ```
 
+macOS 默认写入目录：
+
+```text
+~/Library/Application Support/CodexGauge/
+```
+
 文件说明：
 
 | File | 内容 |
@@ -140,6 +166,10 @@ Windows 默认写入目录：
 | `pnpm rust:check` | Rust fmt/check/test |
 | `pnpm rust:fmt` | 格式化 Rust |
 | `pnpm tauri:build` | 本地打包 |
+| `pnpm mac:doctor` | 检查 macOS Apple Silicon 开发环境 |
+| `pnpm mac:dev` | 启动 macOS 菜单栏应用开发模式 |
+| `pnpm mac:test` | 完整检查并构建、校验调试版 `.app` |
+| `pnpm mac:open` | 打开调试版 `.app` 进行菜单栏交互测试 |
 | `pnpm diagnose:codex` | 脱敏诊断 Codex CLI/app-server |
 | `pnpm diagnose:credits` | 脱敏诊断重置次数 API |
 | `pnpm version:sync v0.1.0` | 同步 package 与 Tauri 版本 |
@@ -194,7 +224,7 @@ v0.1.0
 
 ### Updater configuration
 
-如果只需要发布安装包，不需要配置 updater 变量。CI 会上传 `.msi` 和 `.exe`。
+发布流水线会自动生成 Windows x64 安装包和 macOS arm64 `.dmg`。没有 Apple 证书时仍会发布未签名的 macOS 包；配置 Developer ID 与公证凭证后，会自动签名并公证。
 
 如果需要应用内“检查更新 / 安装更新”，需要配置：
 
@@ -214,7 +244,7 @@ https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json
 
 也可以在设置页修改为自己的 GitHub Release `latest.json` 地址。
 
-签名配置完整时，CI 会根据 Windows 安装包和 `.sig` 签名文件生成 `latest.json`，然后一起上传。缺少这些文件会让发布流程失败，避免 Release 看起来成功但应用内更新不可用。
+Updater 签名配置完整时，CI 会合并 Windows 和 macOS 的签名更新包生成 `latest.json`，然后一起上传。缺少这些文件会让更新清单步骤失败，避免 Release 看起来成功但应用内更新不可用。
 
 生成 updater 密钥：
 
@@ -232,5 +262,5 @@ pnpm tauri signer generate --write-keys updater.key
 ├─ src-tauri/            # Rust/Tauri 后端
 ├─ scripts/              # 版本同步和脱敏诊断脚本
 ├─ docs/                 # 安全、发布和设计文档
-└─ .github/workflows/    # Windows x64 release workflow
+└─ .github/workflows/    # Windows x64 与 macOS arm64 发布工作流
 ```

@@ -106,8 +106,14 @@ pub async fn install_update(
     let result = UpdateCheckResult {
         available: false,
         version: Some(version),
-        message: "更新已安装，应用即将按安装器要求重启。".to_string(),
+        message: "更新已安装，应用即将重启。".to_string(),
     };
+    #[cfg(target_os = "macos")]
+    {
+        let _ = record_update_result(&app, &state, result);
+        app.restart();
+    }
+    #[cfg(not(target_os = "macos"))]
     Ok(record_update_result(&app, &state, result))
 }
 

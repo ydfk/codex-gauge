@@ -1,5 +1,5 @@
 #[cfg(windows)]
-pub fn apply_start_on_boot(enabled: bool) -> Result<(), String> {
+pub fn apply_start_on_boot(_app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
     use winreg::{enums::*, RegKey};
 
     #[cfg(debug_assertions)]
@@ -30,7 +30,20 @@ pub fn apply_start_on_boot(enabled: bool) -> Result<(), String> {
     }
 }
 
-#[cfg(not(windows))]
-pub fn apply_start_on_boot(_enabled: bool) -> Result<(), String> {
+#[cfg(target_os = "macos")]
+pub fn apply_start_on_boot(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+
+    let manager = app.autolaunch();
+    if enabled {
+        manager.enable()
+    } else {
+        manager.disable()
+    }
+    .map_err(|_| "无法更新登录时启动设置".to_string())
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+pub fn apply_start_on_boot(_app: &tauri::AppHandle, _enabled: bool) -> Result<(), String> {
     Ok(())
 }

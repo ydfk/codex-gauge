@@ -80,6 +80,9 @@ export type AppConfig = {
     width: number;
     height: number;
   };
+  macos: {
+    menuBarDisplay: "fiveHour" | "iconOnly" | "fiveAndSeven";
+  };
 };
 
 export type UpdateCheckResult = {

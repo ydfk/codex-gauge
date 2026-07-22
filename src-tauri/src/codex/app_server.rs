@@ -167,6 +167,13 @@ fn codex_command_candidates(command: &str) -> Vec<String> {
     candidates
 }
 
+pub fn resolve_codex_command(command: &str) -> String {
+    codex_command_candidates(command)
+        .into_iter()
+        .find(|candidate| PathBuf::from(candidate).exists())
+        .unwrap_or_else(|| command.to_string())
+}
+
 fn bundled_codex_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
@@ -188,6 +195,17 @@ fn bundled_codex_candidates() -> Vec<PathBuf> {
                 .join("bin")
                 .join("codex.exe"),
         );
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        candidates.push(PathBuf::from("/opt/homebrew/bin/codex"));
+        candidates.push(PathBuf::from("/usr/local/bin/codex"));
+        if let Some(home) = dirs::home_dir() {
+            candidates.push(home.join(".local").join("bin").join("codex"));
+            candidates.push(home.join(".volta").join("bin").join("codex"));
+            candidates.push(home.join(".npm-global").join("bin").join("codex"));
+        }
     }
 
     candidates

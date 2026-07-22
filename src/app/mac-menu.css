@@ -1,0 +1,530 @@
+main.macos-menubar-window {
+  width: 360px;
+  min-height: 480px;
+  color: var(--mac-ink);
+  text-shadow: none;
+  --mac-surface: rgba(31, 31, 34, 0.96);
+  --mac-surface-raised: rgba(255, 255, 255, 0.07);
+  --mac-surface-hover: rgba(255, 255, 255, 0.12);
+  --mac-ink: rgba(255, 255, 255, 0.94);
+  --mac-muted: rgba(255, 255, 255, 0.58);
+  --mac-faint: rgba(255, 255, 255, 0.38);
+  --mac-line: rgba(255, 255, 255, 0.1);
+  --mac-control: rgba(255, 255, 255, 0.09);
+  --mac-track: rgba(255, 255, 255, 0.12);
+  --mac-aqua: #67d9c0;
+  --mac-blue: #72aaf8;
+  --mac-amber: #f0b45b;
+  --mac-red: #ff706f;
+}
+
+.mac-menu-panel {
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr) 48px;
+  width: 360px;
+  height: 480px;
+  overflow: hidden;
+  border: 1px solid var(--mac-line);
+  border-radius: 15px;
+  background: var(--mac-surface);
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.26),
+    0 2px 9px rgba(0, 0, 0, 0.18),
+    inset 0 1px rgba(255, 255, 255, 0.09);
+  color: var(--mac-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  backdrop-filter: blur(30px) saturate(1.25);
+  -webkit-backdrop-filter: blur(30px) saturate(1.25);
+}
+
+.mac-panel-header,
+.mac-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+}
+
+.mac-panel-header {
+  border-bottom: 1px solid var(--mac-line);
+}
+
+.mac-panel-header > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mac-panel-header strong {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.mac-panel-header span,
+.mac-panel-footer > span {
+  overflow: hidden;
+  color: var(--mac-muted);
+  font-size: 10px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mac-panel-header button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--mac-muted);
+  cursor: pointer;
+}
+
+.mac-panel-header button:hover {
+  background: var(--mac-surface-hover);
+  color: var(--mac-ink);
+}
+
+.mac-panel-header button:focus-visible,
+.mac-menu-panel button:focus-visible,
+.mac-menu-panel input:focus-visible,
+.mac-menu-panel select:focus-visible {
+  outline: 2px solid var(--mac-blue);
+  outline-offset: 1px;
+}
+
+.mac-panel-header svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.mac-panel-header .spinning svg {
+  animation: mac-refresh 800ms linear infinite;
+}
+
+.mac-panel-scroll,
+.mac-settings-scroll {
+  min-height: 0;
+  padding: 13px 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.mac-update-notice {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--blue) 32%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--blue) 11%, transparent);
+  color: var(--mac-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mac-update-notice > span {
+  display: grid;
+  gap: 2px;
+}
+
+.mac-update-notice small,
+.mac-update-notice em {
+  color: var(--mac-muted);
+  font-size: 9px;
+  font-style: normal;
+}
+
+.mac-update-notice strong {
+  color: var(--blue);
+  font-size: 11px;
+}
+
+.mac-update-notice em {
+  flex: none;
+  color: var(--mac-ink);
+}
+
+.mac-update-notice:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--blue) 17%, transparent);
+}
+
+.mac-login-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--mac-amber) 32%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--mac-amber) 12%, transparent);
+  color: var(--mac-ink);
+  cursor: pointer;
+}
+
+.mac-login-button span {
+  color: var(--mac-muted);
+  font-size: 10px;
+}
+
+.mac-login-button strong {
+  color: var(--mac-amber);
+  font-size: 10px;
+}
+
+.mac-quota-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.mac-quota-stack article {
+  padding: 11px;
+  border: 1px solid var(--mac-line);
+  border-radius: 11px;
+  background: var(--mac-surface-raised);
+}
+
+.mac-quota-heading,
+.mac-quota-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mac-quota-heading > div {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.mac-quota-heading span {
+  font-size: 12px;
+  font-weight: 640;
+}
+
+.mac-quota-heading small,
+.mac-quota-meta {
+  color: var(--mac-muted);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.mac-quota-heading strong {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+
+.mac-quota-meter {
+  height: 6px;
+  margin: 10px 0 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--mac-track);
+}
+
+.mac-quota-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bar-color);
+  transition: width 180ms ease-out;
+}
+
+.mac-quota-heading strong[class^="tone-"],
+.mac-quota-meter[class*=" tone-"] {
+  color: var(--bar-color);
+}
+
+.mac-quota-heading .tone-muted,
+.mac-quota-meter.tone-muted {
+  --bar-color: #bac5d0;
+}
+
+.mac-quota-heading .tone-full,
+.mac-quota-meter.tone-full {
+  --bar-color: var(--aqua);
+}
+
+.mac-quota-heading .tone-good,
+.mac-quota-meter.tone-good {
+  --bar-color: var(--lime);
+}
+
+.mac-quota-heading .tone-mid,
+.mac-quota-meter.tone-mid {
+  --bar-color: var(--amber);
+}
+
+.mac-quota-heading .tone-low,
+.mac-quota-meter.tone-low {
+  --bar-color: #ff9f5f;
+}
+
+.mac-quota-heading .tone-critical,
+.mac-quota-meter.tone-critical {
+  --bar-color: var(--coral);
+}
+
+.mac-quota-heading .tone-empty,
+.mac-quota-meter.tone-empty {
+  --bar-color: #ff546d;
+}
+
+.mac-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 11px 0 0;
+  border-top: 1px solid var(--mac-line);
+  border-bottom: 1px solid var(--mac-line);
+}
+
+.mac-facts div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 6px;
+}
+
+.mac-facts div + div {
+  border-left: 1px solid var(--mac-line);
+}
+
+.mac-facts span,
+.mac-credit-list small,
+.mac-setting-section label > span,
+.mac-update-box span {
+  color: var(--mac-muted);
+  font-size: 9px;
+}
+
+.mac-facts strong {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mac-credit-list {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+}
+
+.mac-section-title {
+  color: var(--mac-muted);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mac-credit-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: var(--mac-surface-raised);
+}
+
+.mac-credit-list strong,
+.mac-credit-list span {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mac-credit-list span {
+  color: var(--mac-aqua);
+}
+
+.mac-credit-list small {
+  grid-column: 1 / -1;
+}
+
+.mac-panel-footer {
+  border-top: 1px solid var(--mac-line);
+}
+
+.mac-panel-footer > span {
+  max-width: 175px;
+}
+
+.mac-panel-footer div {
+  display: flex;
+  gap: 5px;
+}
+
+.mac-panel-footer button,
+.mac-update-box button {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--mac-control);
+  color: var(--mac-ink);
+  font-size: 10px;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.mac-panel-footer button:hover,
+.mac-update-box button:hover:not(:disabled) {
+  background: var(--mac-surface-hover);
+}
+
+.mac-settings-scroll {
+  grid-row: 2 / 4;
+  padding-bottom: 16px;
+}
+
+.mac-setting-section {
+  display: grid;
+  margin-bottom: 15px;
+}
+
+.mac-setting-section > .mac-section-title {
+  margin-bottom: 5px;
+  padding-left: 3px;
+}
+
+.mac-setting-section label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 148px;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--mac-line);
+  background: var(--mac-surface-raised);
+}
+
+.mac-setting-section label:first-of-type {
+  border-radius: 9px 9px 0 0;
+}
+
+.mac-setting-section label:last-of-type {
+  border-bottom: 0;
+  border-radius: 0 0 9px 9px;
+}
+
+.mac-setting-section label:only-of-type {
+  border-radius: 9px;
+}
+
+.mac-setting-section input[type="text"],
+.mac-setting-section select {
+  width: 148px;
+  height: 25px;
+  padding: 0 7px;
+  border: 1px solid var(--mac-line);
+  border-radius: 6px;
+  background: var(--mac-control);
+  color: var(--mac-ink);
+  font-size: 10px;
+}
+
+.mac-setting-section .mac-setting-wide {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.mac-setting-section .mac-setting-wide input {
+  width: 100%;
+}
+
+.mac-toggle-row input {
+  justify-self: end;
+  accent-color: var(--mac-blue);
+}
+
+.mac-update-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border-radius: 9px;
+  background: var(--mac-surface-raised);
+}
+
+.mac-update-box > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mac-update-box strong,
+.mac-update-box span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mac-update-box strong {
+  font-size: 10px;
+}
+
+.mac-update-box > div:last-child {
+  display: flex;
+  gap: 5px;
+}
+
+.mac-update-box button:disabled {
+  opacity: 0.42;
+}
+
+.mac-settings-error {
+  margin: 0;
+  color: var(--mac-red);
+  font-size: 10px;
+}
+
+@media (prefers-color-scheme: light) {
+  main.macos-menubar-window {
+    --mac-surface: rgba(247, 247, 249, 0.97);
+    --mac-surface-raised: rgba(0, 0, 0, 0.035);
+    --mac-surface-hover: rgba(0, 0, 0, 0.075);
+    --mac-ink: rgba(18, 18, 22, 0.92);
+    --mac-muted: rgba(18, 18, 22, 0.58);
+    --mac-faint: rgba(18, 18, 22, 0.35);
+    --mac-line: rgba(18, 18, 22, 0.11);
+    --mac-control: rgba(255, 255, 255, 0.72);
+    --mac-track: rgba(18, 18, 22, 0.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mac-quota-meter i {
+    transition: none;
+  }
+
+  .mac-panel-header .spinning svg {
+    animation: none;
+  }
+}
+
+@keyframes mac-refresh {
+  to {
+    transform: rotate(360deg);
+  }
+}

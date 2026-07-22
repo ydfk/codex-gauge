@@ -23,6 +23,8 @@ use parser::{parse_account, parse_rate_limits};
 use reset::apply_reset_inference;
 use session_usage::read_session_token_usage;
 
+pub use app_server::resolve_codex_command;
+
 pub fn refresh_codex_snapshot(config: &AppConfig, state: &mut StateDocument) -> CodexUsageSnapshot {
     reset_period_counters(state);
 

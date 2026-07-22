@@ -1,7 +1,7 @@
 <script lang="ts">
   import { PhysicalPosition } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { formatCompactDateTime, formatPercent } from "../lib/format";
+  import { formatCompactDateTime, formatPercent, remainingTone } from "../lib/format";
   import type { CodexUsageSnapshot } from "../lib/types";
 
   export let snapshot: CodexUsageSnapshot | null = null;
@@ -15,8 +15,8 @@
   $: fiveHourUnlimited = snapshot?.primaryWindowUnlimited ?? false;
   $: fiveHourTone = fiveHourUnlimited
     ? "tone-full"
-    : valueTone(snapshot?.primaryWindow?.remainingPercent);
-  $: weeklyTone = valueTone(snapshot?.secondaryWindow?.remainingPercent);
+    : remainingTone(snapshot?.primaryWindow?.remainingPercent);
+  $: weeklyTone = remainingTone(snapshot?.secondaryWindow?.remainingPercent);
   let horizontalDrag:
     | {
         pointerId: number;
@@ -28,16 +28,6 @@
       }
     | null = null;
   let dragging = false;
-
-  function valueTone(value: number | null | undefined) {
-    if (value == null) return "tone-muted";
-    if (value <= 5) return "tone-empty";
-    if (value <= 15) return "tone-critical";
-    if (value <= 30) return "tone-low";
-    if (value <= 50) return "tone-mid";
-    if (value <= 70) return "tone-good";
-    return "tone-full";
-  }
 
   async function handlePointerDown(event: PointerEvent) {
     if (locked || event.button !== 0) return;

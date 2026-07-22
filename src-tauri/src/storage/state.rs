@@ -240,6 +240,7 @@ mod tests {
         assert_eq!(config.window.width, 430.0);
         assert!(!config.general.main_always_on_top);
         assert!(config.general.top_always_on_top);
+        assert_eq!(config.macos.menu_bar_display, "fiveAndSeven");
         assert!(temp.path().join("config.json").exists());
     }
 

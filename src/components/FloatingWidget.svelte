@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { formatCompactDateTime, formatPercent, statusText } from "../lib/format";
+  import { formatCompactDateTime, formatPercent, remainingTone, statusText } from "../lib/format";
   import type { CodexUsageSnapshot } from "../lib/types";
 
   export let snapshot: CodexUsageSnapshot | null = null;
@@ -16,8 +16,8 @@
   $: weeklyWidth = barWidth(snapshot?.secondaryWindow?.remainingPercent);
   $: fiveHourTone = fiveHourUnlimited
     ? "tone-full"
-    : meterTone(snapshot?.primaryWindow?.remainingPercent);
-  $: weeklyTone = meterTone(snapshot?.secondaryWindow?.remainingPercent);
+    : remainingTone(snapshot?.primaryWindow?.remainingPercent);
+  $: weeklyTone = remainingTone(snapshot?.secondaryWindow?.remainingPercent);
   $: resetCount = snapshot?.credits?.availableCount ?? snapshot?.credits?.resetCredits ?? "未知";
   $: usedSummary = snapshot
     ? `${fiveHourUnlimited ? "5h 无限" : `5h已用 ${formatPercent(snapshot.primaryWindow?.usedPercent)}`} · 7d已用 ${formatPercent(snapshot.secondaryWindow?.usedPercent)}`
@@ -29,16 +29,6 @@
 
   function barWidth(value: number | null | undefined) {
     return `${Math.max(0, Math.min(100, value ?? 0))}%`;
-  }
-
-  function meterTone(value: number | null | undefined) {
-    if (value == null) return "tone-muted";
-    if (value <= 5) return "tone-empty";
-    if (value <= 15) return "tone-critical";
-    if (value <= 30) return "tone-low";
-    if (value <= 50) return "tone-mid";
-    if (value <= 70) return "tone-good";
-    return "tone-full";
   }
 
   function handlePointerDown(event: PointerEvent) {

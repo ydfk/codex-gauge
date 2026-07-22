@@ -24,6 +24,10 @@ pub struct AppState {
     refresh_cache: Mutex<RefreshCache>,
     update_status: Mutex<Option<updater::UpdateCheckResult>>,
     oled_moves: Mutex<HashMap<String, (i32, i32)>>,
+    #[cfg(target_os = "macos")]
+    menubar_blurred_at: Mutex<Option<std::time::Instant>>,
+    #[cfg(target_os = "macos")]
+    macos_refresh_wake: Mutex<Option<std::sync::mpsc::Sender<()>>>,
 }
 
 #[tauri::command]
@@ -41,15 +45,20 @@ impl AppState {
     fn new(storage: AppStorage) -> Self {
         let config = storage.load_config();
         let state_doc = storage.load_state();
+        let snapshot = state_doc.last_snapshot.clone();
 
         Self {
             storage,
             config: Mutex::new(config),
             state_doc: Mutex::new(state_doc),
-            snapshot: Mutex::new(None),
+            snapshot: Mutex::new(snapshot),
             refresh_cache: Mutex::new(RefreshCache::default()),
             update_status: Mutex::new(None),
             oled_moves: Mutex::new(HashMap::new()),
+            #[cfg(target_os = "macos")]
+            menubar_blurred_at: Mutex::new(None),
+            #[cfg(target_os = "macos")]
+            macos_refresh_wake: Mutex::new(None),
         }
     }
 
@@ -169,6 +178,41 @@ impl AppState {
         self.snapshot.lock().expect("snapshot mutex").clone()
     }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) fn mark_menubar_blurred(&self) {
+        *self.menubar_blurred_at.lock().expect("menubar blur mutex") =
+            Some(std::time::Instant::now());
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn should_suppress_menubar_reopen(&self) -> bool {
+        self.menubar_blurred_at
+            .lock()
+            .expect("menubar blur mutex")
+            .take()
+            .is_some_and(|instant| instant.elapsed() < std::time::Duration::from_millis(250))
+    }
+
+    #[cfg(target_os = "macos")]
+    fn set_macos_refresh_wake(&self, sender: std::sync::mpsc::Sender<()>) {
+        *self
+            .macos_refresh_wake
+            .lock()
+            .expect("macos refresh wake mutex") = Some(sender);
+    }
+
+    #[cfg(target_os = "macos")]
+    fn wake_macos_refresh(&self) {
+        if let Some(sender) = self
+            .macos_refresh_wake
+            .lock()
+            .expect("macos refresh wake mutex")
+            .as_ref()
+        {
+            let _ = sender.send(());
+        }
+    }
+
     pub(crate) fn record_update_event(&self, method: &str, outcome: &str, category: &str) {
         self.storage.record_update_event(method, outcome, category);
     }
@@ -207,6 +251,7 @@ impl AppState {
         true
     }
 
+    #[cfg(not(target_os = "macos"))]
     pub(crate) fn always_on_top_enabled(&self, target: WindowPinTarget) -> bool {
         let config = self.config.lock().expect("config mutex");
         match target {
@@ -215,6 +260,7 @@ impl AppState {
         }
     }
 
+    #[cfg(not(target_os = "macos"))]
     pub(crate) fn lock_position_enabled(&self, target: WindowLockTarget) -> bool {
         let config = self.config.lock().expect("config mutex");
         match target {
@@ -279,6 +325,7 @@ fn get_snapshot(state: State<'_, AppState>, app: AppHandle) -> CodexUsageSnapsho
 fn refresh_snapshot(state: State<'_, AppState>, app: AppHandle) -> CodexUsageSnapshot {
     let snapshot = state.get_snapshot_cached(true);
     tray::update_tooltip(&app, &snapshot);
+    let _ = app.emit("codex-gauge-snapshot-updated", &snapshot);
     snapshot
 }
 
@@ -293,12 +340,14 @@ fn save_config(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<AppConfig, String> {
-    autostart::apply_start_on_boot(config.general.start_on_boot)?;
+    autostart::apply_start_on_boot(&app, config.general.start_on_boot)?;
     {
         let mut current = state.config.lock().expect("config mutex");
         *current = config.clone();
         state.storage.save_config(&current);
     }
+    #[cfg(target_os = "macos")]
+    state.wake_macos_refresh();
 
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_always_on_top(config.general.main_always_on_top);
@@ -335,7 +384,8 @@ fn get_reset_stats(state: State<'_, AppState>) -> ResetStats {
 #[tauri::command]
 fn open_codex_login(state: State<'_, AppState>) -> Result<(), String> {
     let config = state.config.lock().expect("config mutex").clone();
-    let mut command = std::process::Command::new(config.codex.command);
+    let command_path = codex::resolve_codex_command(&config.codex.command);
+    let mut command = std::process::Command::new(command_path);
     command.arg("login");
     hide_windows_console(&mut command);
 
@@ -534,8 +584,14 @@ pub fn run() {
     #[cfg(debug_assertions)]
     state.disable_debug_start_on_boot();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_updater::Builder::new().build());
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_plugin_autostart::init(
+        tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+        None,
+    ));
+
+    builder
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
@@ -558,17 +614,54 @@ pub fn run() {
             quit_app
         ])
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
             let state = app.state::<AppState>();
-            let _ = autostart::apply_start_on_boot(state.start_on_boot_enabled());
+            let _ = autostart::apply_start_on_boot(app.handle(), state.start_on_boot_enabled());
             window::setup_main_window(app.handle())?;
             window::setup_top_window(app.handle())?;
             window::setup_panel_windows(app.handle());
+            window::setup_menubar_window(app.handle())?;
             tray::setup_tray(app.handle())?;
+            start_macos_refresh_loop(app.handle().clone());
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running Codex Gauge");
 }
+
+#[cfg(target_os = "macos")]
+fn start_macos_refresh_loop(app: AppHandle) {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    app.state::<AppState>().set_macos_refresh_wake(sender);
+    std::thread::spawn(move || loop {
+        let snapshot = {
+            let state = app.state::<AppState>();
+            state.refresh_snapshot_now()
+        };
+        tray::update_tooltip(&app, &snapshot);
+        let _ = app.emit("codex-gauge-snapshot-updated", &snapshot);
+
+        let interval = app
+            .state::<AppState>()
+            .config
+            .lock()
+            .expect("config mutex")
+            .general
+            .refresh_interval_seconds
+            .clamp(30, 600);
+        if matches!(
+            receiver.recv_timeout(std::time::Duration::from_secs(interval)),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected)
+        ) {
+            break;
+        }
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn start_macos_refresh_loop(_app: AppHandle) {}
 
 #[cfg(test)]
 mod tests {

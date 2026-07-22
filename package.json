@@ -17,6 +17,10 @@
     "tauri:build": "tauri build",
     "dev:desktop": "tauri dev",
     "build:desktop": "tauri build",
+    "mac:doctor": "bash scripts/macos-dev.sh doctor",
+    "mac:dev": "bash scripts/macos-dev.sh dev",
+    "mac:test": "bash scripts/macos-dev.sh test",
+    "mac:open": "bash scripts/macos-dev.sh open",
     "diagnose:codex": "node scripts/diagnose-codex.mjs",
     "diagnose:credits": "node scripts/diagnose-reset-credits.mjs",
     "version:sync": "node scripts/sync-version.mjs"

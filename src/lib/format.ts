@@ -4,6 +4,16 @@ export function formatPercent(value: number | null | undefined) {
   return value == null ? "未知" : `${Math.round(value)}%`;
 }
 
+export function remainingTone(value: number | null | undefined) {
+  if (value == null) return "tone-muted";
+  if (value <= 5) return "tone-empty";
+  if (value <= 15) return "tone-critical";
+  if (value <= 30) return "tone-low";
+  if (value <= 50) return "tone-mid";
+  if (value <= 70) return "tone-good";
+  return "tone-full";
+}
+
 export function formatReset(unixSeconds: number | null | undefined) {
   if (unixSeconds == null) return "未知";
   const remaining = Math.max(0, Math.floor(unixSeconds - Date.now() / 1000));
