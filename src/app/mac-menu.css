@@ -120,6 +120,15 @@ main.macos-menubar-window {
   overflow-y: auto;
 }
 
+.mac-panel-scroll.has-update {
+  scrollbar-width: none;
+}
+
+.mac-panel-scroll.has-update::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 .mac-update-notice {
   display: flex;
   width: 100%;

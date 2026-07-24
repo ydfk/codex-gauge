@@ -69,6 +69,10 @@ export function toggleWindowVisible(label: string) {
   return invoke<boolean>("toggle_window_visible", { label });
 }
 
+export function restartApp() {
+  return invoke<void>("restart_app");
+}
+
 export function quitApp() {
   return invoke<void>("quit_app");
 }

@@ -543,6 +543,12 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+#[tauri::command]
+fn restart_app(state: State<'_, AppState>, app: AppHandle) {
+    state.record_update_event("restart_app", "success", "requested");
+    app.restart();
+}
+
 fn persist_window_visibility(state: &AppState, app: &AppHandle, label: &str, visible: bool) {
     if state.set_window_visibility_preference(label, visible) {
         let _ = app.emit("codex-gauge-config-updated", ());
@@ -619,6 +625,7 @@ pub fn run() {
             show_window,
             hide_window,
             toggle_window_visible,
+            restart_app,
             quit_app
         ])
         .setup(|app| {

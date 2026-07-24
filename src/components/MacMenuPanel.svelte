@@ -110,7 +110,7 @@
   </header>
 
   {#if view === "detail"}
-    <div class="mac-panel-scroll">
+    <div class="mac-panel-scroll" class:has-update={!!availableVersion}>
       {#if availableVersion}
         <button
           class="mac-update-notice"

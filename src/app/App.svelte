@@ -23,6 +23,7 @@
     toggleWindowVisible,
     quitApp,
     moveWindowForOled,
+    restartApp,
   } from "../lib/api";
   import type { AppConfig, CodexUsageSnapshot, UpdateCheckResult } from "../lib/types";
 
@@ -134,6 +135,10 @@
       message = "安装更新中";
       updateStatus = await installUpdate();
       message = updateStatus.message;
+      if (isMacMenuWindow && !updateStatus.available && updateStatus.version) {
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+        await restartApp();
+      }
     } catch {
       message = "安装更新失败";
     }
