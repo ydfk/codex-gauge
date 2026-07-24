@@ -348,27 +348,22 @@ fn menu_bar_title(snapshot: Option<&CodexUsageSnapshot>, mode: &str) -> Option<S
         return None;
     }
 
-    let five_hour = snapshot
-        .map(|snapshot| {
-            if snapshot.primary_window_unlimited {
-                "∞".to_string()
-            } else {
-                percent_compact(
-                    snapshot
-                        .primary_window
-                        .as_ref()
-                        .and_then(|window| window.remaining_percent),
-                )
-            }
-        })
-        .unwrap_or_else(|| percent_compact(None));
+    let weekly = snapshot
+        .and_then(|snapshot| snapshot.secondary_window.as_ref())
+        .and_then(|window| window.remaining_percent);
+    if snapshot.is_some_and(|snapshot| snapshot.primary_window_unlimited) {
+        return (mode == "fiveAndSeven").then(|| format!("7d {}", percent_compact(weekly)));
+    }
+
+    let five_hour = percent_compact(
+        snapshot
+            .and_then(|snapshot| snapshot.primary_window.as_ref())
+            .and_then(|window| window.remaining_percent),
+    );
     if mode != "fiveAndSeven" {
         return Some(format!("5h {}", five_hour));
     }
 
-    let weekly = snapshot
-        .and_then(|snapshot| snapshot.secondary_window.as_ref())
-        .and_then(|window| window.remaining_percent);
     Some(format!("5h {} · 7d {}", five_hour, percent_compact(weekly)))
 }
 
@@ -638,14 +633,19 @@ mod tests {
     }
 
     #[test]
-    fn formats_unlimited_and_unknown_menu_bar_values() {
+    fn hides_unlimited_five_hour_from_menu_bar() {
         let mut unlimited = snapshot(None, Some(80.0));
         unlimited.primary_window_unlimited = true;
 
         assert_eq!(
-            menu_bar_title(Some(&unlimited), "fiveHour"),
-            Some("5h ∞".to_string())
+            menu_bar_title(Some(&unlimited), "fiveAndSeven"),
+            Some("7d 80%".to_string())
         );
+        assert_eq!(menu_bar_title(Some(&unlimited), "fiveHour"), None);
+    }
+
+    #[test]
+    fn formats_unknown_menu_bar_values() {
         assert_eq!(menu_bar_title(None, "fiveHour"), Some("5h —".to_string()));
     }
 }
