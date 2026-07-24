@@ -178,6 +178,11 @@ main.settings-window {
   padding: 0 8px;
 }
 
+.top-summary.five-hour-hidden {
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+}
+
 .top-status-widget strong,
 .top-status-widget span,
 .top-status-widget em {
@@ -196,6 +201,12 @@ main.settings-window {
   gap: 2px;
   padding: 4px 8px 5px;
   border-top: 1px solid rgba(255, 255, 255, 0.13);
+}
+
+.top-status-widget.details-open.five-hour-hidden .top-hover-details {
+  height: 82px;
+  align-content: center;
+  gap: 8px;
 }
 
 .top-hover-row {

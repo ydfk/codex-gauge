@@ -106,6 +106,7 @@
   class="top-status-widget"
   class:dragging
   class:details-open={detailsOpen}
+  class:five-hour-hidden={fiveHourUnlimited}
   class:position-locked={locked}
   role="presentation"
   oncontextmenu={handleContextMenu}
@@ -117,19 +118,23 @@
   onmouseenter={showDetails}
   onmouseleave={hideDetails}
 >
-  <div class="top-summary">
-    <strong class={fiveHourTone}>5h {fiveHourUnlimited ? "无限" : formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
-    <span class={weeklyTone}>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</span>
+  <div class="top-summary" class:five-hour-hidden={fiveHourUnlimited}>
+    {#if !fiveHourUnlimited}
+      <strong class={fiveHourTone}>5h {formatPercent(snapshot?.primaryWindow?.remainingPercent)}</strong>
+    {/if}
+    <strong class={weeklyTone}>7d {formatPercent(snapshot?.secondaryWindow?.remainingPercent)}</strong>
     <em>重置 {resetCount}</em>
   </div>
 
   {#if detailsOpen}
     <div class="top-hover-details" role="status">
-      <div class="top-hover-row">
-        <span>5h</span>
-        <strong>{fiveHourUnlimited ? "无限" : `剩 ${formatPercent(snapshot?.primaryWindow?.remainingPercent)} · 用 ${formatPercent(snapshot?.primaryWindow?.usedPercent)}`}</strong>
-        <small>{fiveHourUnlimited ? "无需重置" : `重置 ${formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}`}</small>
-      </div>
+      {#if !fiveHourUnlimited}
+        <div class="top-hover-row">
+          <span>5h</span>
+          <strong>剩 {formatPercent(snapshot?.primaryWindow?.remainingPercent)} · 用 {formatPercent(snapshot?.primaryWindow?.usedPercent)}</strong>
+          <small>重置 {formatCompactDateTime(snapshot?.primaryWindow?.resetAt)}</small>
+        </div>
+      {/if}
       <div class="top-hover-row">
         <span>7d</span>
         <strong>剩 {formatPercent(snapshot?.secondaryWindow?.remainingPercent)} · 用 {formatPercent(snapshot?.secondaryWindow?.usedPercent)}</strong>
