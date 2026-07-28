@@ -103,6 +103,10 @@ impl AppState {
     }
 
     fn save_window_position(&self, x: i32, y: i32) {
+        if window::is_hidden_window_position(x, y) {
+            return;
+        }
+
         let mut config = self.config.lock().expect("config mutex");
         if config.general.lock_position {
             return;
@@ -114,6 +118,10 @@ impl AppState {
     }
 
     pub(crate) fn save_top_window_position(&self, x: i32) {
+        if window::is_hidden_window_coordinate(x) {
+            return;
+        }
+
         let mut config = self.config.lock().expect("config mutex");
         if config.general.top_lock_position {
             return;

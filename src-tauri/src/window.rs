@@ -16,6 +16,7 @@ pub const MENUBAR_HEIGHT: u32 = 480;
 
 const DEFAULT_TOP_MARGIN: i32 = 28;
 const TOP_STATUS_MARGIN: i32 = 0;
+const HIDDEN_WINDOW_COORDINATE: i32 = -32_000;
 
 pub fn main_window_size(expanded: bool) -> LogicalSize<u32> {
     if expanded {
@@ -230,16 +231,56 @@ fn place_main_window(window: &WebviewWindow, x: Option<i32>, y: Option<i32>) {
 }
 
 fn place_top_window(window: &WebviewWindow, saved_x: Option<i32>) {
-    let Ok(Some(monitor)) = window.current_monitor() else {
+    let saved_x = saved_x.filter(|position| !is_hidden_window_coordinate(*position));
+    let monitors = window.available_monitors().unwrap_or_default();
+    let monitor = saved_x
+        .and_then(|position| {
+            monitors
+                .iter()
+                .find(|monitor| {
+                    let origin = monitor.position();
+                    let width = monitor.size().width as i32;
+                    position >= origin.x && position < origin.x.saturating_add(width)
+                })
+                .cloned()
+        })
+        .or_else(|| window.current_monitor().ok().flatten())
+        .or_else(|| monitors.first().cloned());
+    let Some(monitor) = monitor else {
         return;
     };
 
     let monitor_origin = monitor.position();
     let monitor_size = monitor.size();
     let physical_width = (TOP_WIDTH as f64 * monitor.scale_factor()).round() as u32;
-    let x = saved_x.unwrap_or_else(|| {
-        monitor_origin.x + ((monitor_size.width.saturating_sub(physical_width)) / 2) as i32
-    });
+    let min_x = monitor_origin.x;
+    let max_x = monitor_origin.x + monitor_size.width.saturating_sub(physical_width) as i32;
+    let x = saved_x
+        .filter(|position| (*position >= min_x) && (*position <= max_x))
+        .unwrap_or_else(|| {
+            min_x + ((monitor_size.width.saturating_sub(physical_width)) / 2) as i32
+        });
     let y = monitor_origin.y + TOP_STATUS_MARGIN;
     let _ = window.set_position(PhysicalPosition::new(x, y));
+}
+
+pub(crate) fn is_hidden_window_position(x: i32, y: i32) -> bool {
+    is_hidden_window_coordinate(x) || is_hidden_window_coordinate(y)
+}
+
+pub(crate) fn is_hidden_window_coordinate(position: i32) -> bool {
+    // Windows 隐藏窗口时可能发送 -32000 的临时坐标，不能写入用户位置配置。
+    position <= HIDDEN_WINDOW_COORDINATE
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identifies_windows_hidden_window_coordinate() {
+        assert!(is_hidden_window_coordinate(-32_000));
+        assert!(is_hidden_window_position(120, -32_000));
+        assert!(!is_hidden_window_position(-10_000, 0));
+    }
 }
