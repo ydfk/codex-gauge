@@ -360,7 +360,7 @@ fn save_config(
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_always_on_top(config.general.main_always_on_top);
         if config.general.show_on_startup {
-            let _ = window.show();
+            let _ = window::show_window_without_taskbar(&window);
         } else {
             let _ = window.hide();
         }
@@ -368,7 +368,7 @@ fn save_config(
     if let Some(window) = app.get_webview_window("top") {
         let _ = window.set_always_on_top(config.general.top_always_on_top);
         if config.general.top_status_enabled {
-            let _ = window.show();
+            let _ = window::show_window_without_taskbar(&window);
         } else {
             let _ = window.hide();
         }
@@ -417,7 +417,7 @@ fn show_main_window(state: State<'_, AppState>, app: AppHandle) -> Result<(), St
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "主窗口不存在".to_string())?;
-    window.show().map_err(|err| err.to_string())?;
+    window::show_window_without_taskbar(&window).map_err(|err| err.to_string())?;
     window.set_focus().map_err(|err| err.to_string())?;
     persist_window_visibility(&state, &app, "main", true);
     tray::update_menu(&app);
@@ -489,7 +489,7 @@ fn show_window(label: String, state: State<'_, AppState>, app: AppHandle) -> Res
     let window = app
         .get_webview_window(&label)
         .ok_or_else(|| "窗口不存在".to_string())?;
-    window.show().map_err(|err| err.to_string())?;
+    window::show_window_without_taskbar(&window).map_err(|err| err.to_string())?;
     window.set_focus().map_err(|err| err.to_string())?;
     persist_window_visibility(&state, &app, &label, true);
     tray::update_menu(&app);
@@ -531,7 +531,7 @@ fn toggle_window_visible(
         return Ok(false);
     }
 
-    window.show().map_err(|err| err.to_string())?;
+    window::show_window_without_taskbar(&window).map_err(|err| err.to_string())?;
     window.set_focus().map_err(|err| err.to_string())?;
     persist_window_visibility(&state, &app, &label, true);
     tray::update_menu(&app);

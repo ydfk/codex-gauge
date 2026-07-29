@@ -381,7 +381,7 @@ fn toggle_window(app: &AppHandle) {
             let _ = window.hide();
             persist_window_visibility(app, "main", false);
         } else {
-            let _ = window.show();
+            let _ = crate::window::show_window_without_taskbar(&window);
             let _ = window.set_focus();
             persist_window_visibility(app, "main", true);
         }
@@ -396,7 +396,7 @@ fn toggle_top_window(app: &AppHandle) {
             let _ = window.hide();
             persist_window_visibility(app, "top", false);
         } else {
-            let _ = window.show();
+            let _ = crate::window::show_window_without_taskbar(&window);
             let _ = window.set_focus();
             persist_window_visibility(app, "top", true);
         }
@@ -409,7 +409,7 @@ fn toggle_named_window(app: &AppHandle, label: &str) {
         if window.is_visible().unwrap_or_default() {
             let _ = window.hide();
         } else {
-            let _ = window.show();
+            let _ = crate::window::show_window_without_taskbar(&window);
             let _ = window.set_focus();
         }
         update_menu(app);
@@ -447,7 +447,7 @@ fn bring_visible_windows_to_front(app: &AppHandle) {
             continue;
         };
         if window.is_visible().unwrap_or(false) {
-            let _ = window.show();
+            let _ = crate::window::show_window_without_taskbar(&window);
             let _ = window.set_focus();
         }
     }

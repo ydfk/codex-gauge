@@ -1,6 +1,11 @@
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, WebviewWindow, WindowEvent,
 };
+#[cfg(windows)]
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_EXSTYLE, SWP_FRAMECHANGED,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
+};
 
 use crate::AppState;
 
@@ -47,10 +52,11 @@ pub fn setup_main_window(app: &AppHandle) -> tauri::Result<()> {
 
     window.set_size(main_window_size(false))?;
     let _ = window.set_shadow(false);
+    hide_from_windows_taskbar(&window);
     window.set_always_on_top(config.general.main_always_on_top)?;
     place_main_window(&window, config.window.x, config.window.y);
     if config.general.show_on_startup {
-        let _ = window.show();
+        let _ = show_window_without_taskbar(&window);
     }
 
     let app_handle = app.clone();
@@ -87,10 +93,11 @@ pub fn setup_top_window(app: &AppHandle) -> tauri::Result<()> {
 
     window.set_size(top_window_size(false))?;
     let _ = window.set_shadow(false);
+    hide_from_windows_taskbar(&window);
     window.set_always_on_top(config.general.top_always_on_top)?;
     place_top_window(&window, config.window.top_x);
     if config.general.top_status_enabled {
-        let _ = window.show();
+        let _ = show_window_without_taskbar(&window);
     }
 
     let app_handle = app.clone();
@@ -122,6 +129,7 @@ pub fn setup_panel_windows(app: &AppHandle) {
             continue;
         };
         let _ = window.set_shadow(false);
+        hide_from_windows_taskbar(&window);
 
         let panel = window.clone();
         window.on_window_event(move |event| {
@@ -171,6 +179,12 @@ pub fn show_menubar_window(app: &AppHandle, anchor: Option<(f64, f64)>) {
     let _ = window.set_focus();
 }
 
+pub(crate) fn show_window_without_taskbar(window: &WebviewWindow) -> tauri::Result<()> {
+    window.show()?;
+    hide_from_windows_taskbar(window);
+    Ok(())
+}
+
 fn place_menubar_window(window: &WebviewWindow, anchor: Option<(f64, f64)>) {
     let monitors = window.available_monitors().unwrap_or_default();
     let monitor = anchor
@@ -211,6 +225,38 @@ fn place_menubar_window(window: &WebviewWindow, anchor: Option<(f64, f64)>) {
 
     let _ = window.set_position(PhysicalPosition::new(x, y));
 }
+
+#[cfg(windows)]
+fn hide_from_windows_taskbar(window: &WebviewWindow) {
+    // Tao 的 skipTaskbar 只会通知任务栏，仍需调整窗口样式以移除任务栏按钮。
+    let _ = window.set_skip_taskbar(true);
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+
+    unsafe {
+        let current_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let next_style =
+            (current_style & !(WS_EX_APPWINDOW.0 as isize)) | WS_EX_TOOLWINDOW.0 as isize;
+        if current_style == next_style {
+            return;
+        }
+
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, next_style);
+        let _ = SetWindowPos(
+            hwnd,
+            None,
+            0,
+            0,
+            0,
+            0,
+            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn hide_from_windows_taskbar(_window: &WebviewWindow) {}
 
 fn place_main_window(window: &WebviewWindow, x: Option<i32>, y: Option<i32>) {
     if let (Some(x), Some(y)) = (x, y) {
