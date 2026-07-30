@@ -1,0 +1,5 @@
+// 发布构建应在未提交的 Local.xcconfig 中覆盖此值。
+SPARKLE_PUBLIC_ED_KEY = REPLACE_WITH_SPARKLE_ED25519_PUBLIC_KEY
+
+#include? "Local.xcconfig"
+

@@ -1,0 +1,3 @@
+// 使用 Sparkle 的 generate_keys 生成，私钥只保存在钥匙串或 CI Secret。
+SPARKLE_PUBLIC_ED_KEY = REPLACE_WITH_SPARKLE_ED25519_PUBLIC_KEY
+

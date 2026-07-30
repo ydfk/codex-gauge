@@ -127,7 +127,7 @@ fn icon_with_update_badge(icon: Image<'static>) -> Image<'static> {
         center_x,
         center_y,
         inner_radius,
-        [112, 235, 198, 255],
+        [108, 127, 242, 255],
     );
     Image::new_owned(rgba, width, height)
 }
@@ -179,7 +179,7 @@ mod tests {
     }
 
     #[test]
-    fn draws_mint_update_badge_without_changing_canvas_size() {
+    fn draws_indigo_update_badge_without_changing_canvas_size() {
         let icon = Image::new_owned(vec![0; 32 * 32 * 4], 32, 32);
         let badged = icon_with_update_badge(icon);
 
@@ -187,30 +187,22 @@ mod tests {
         assert!(badged
             .rgba()
             .chunks_exact(4)
-            .any(|pixel| pixel == [112, 235, 198, 255]));
+            .any(|pixel| pixel == [108, 127, 242, 255]));
     }
 
     #[test]
-    fn keeps_windows_tray_colors_in_macos_icon() {
+    fn keeps_brand_colors_in_macos_icon() {
         let icon = macos_tray_icon();
         let pixels = icon.rgba().chunks_exact(4);
         let has_dark_background = pixels
             .clone()
             .any(|pixel| pixel[3] > 180 && pixel[0].max(pixel[1]).max(pixel[2]) < 80);
-        let has_mint_ring = pixels
+        let has_blue_indigo_g = pixels
             .clone()
-            .any(|pixel| pixel[3] > 180 && pixel[1] > 170 && pixel[1] > pixel[0]);
-        let has_white_g = pixels
-            .clone()
-            .any(|pixel| pixel[3] > 180 && pixel[0].min(pixel[1]).min(pixel[2]) > 200);
-        let has_orange_dot = pixels
-            .clone()
-            .any(|pixel| pixel[3] > 180 && pixel[0] > 200 && pixel[1] > 100 && pixel[2] < 140);
+            .any(|pixel| pixel[3] > 180 && pixel[0] > 80 && pixel[1] > 100 && pixel[2] > 210);
 
         assert_eq!((icon.width(), icon.height()), (36, 36));
         assert!(has_dark_background);
-        assert!(has_mint_ring);
-        assert!(has_white_g);
-        assert!(has_orange_dot);
+        assert!(has_blue_indigo_g);
     }
 }

@@ -1,0 +1,383 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A20000000000000000000001 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* Models.swift */; };
+		A20000000000000000000002 /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* JSONValue.swift */; };
+		A20000000000000000000003 /* UsageParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* UsageParser.swift */; };
+		A20000000000000000000004 /* CodexCommandResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* CodexCommandResolver.swift */; };
+		A20000000000000000000005 /* AppServerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000005 /* AppServerClient.swift */; };
+		A20000000000000000000006 /* AuthJSONClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* AuthJSONClient.swift */; };
+		A20000000000000000000007 /* UsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000007 /* UsageService.swift */; };
+		A20000000000000000000008 /* AppStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* AppStorage.swift */; };
+		A20000000000000000000009 /* LoginItemService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000009 /* LoginItemService.swift */; };
+		A2000000000000000000000A /* UpdaterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000A /* UpdaterService.swift */; };
+		A2000000000000000000000B /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000B /* AppModel.swift */; };
+		A2000000000000000000000C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000C /* AppDelegate.swift */; };
+		A2000000000000000000000D /* CodexGaugeNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000D /* CodexGaugeNativeApp.swift */; };
+		A2000000000000000000000E /* GlassSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000E /* GlassSupport.swift */; };
+		A20000000000000000000010 /* UsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000010 /* UsageCard.swift */; };
+		A20000000000000000000011 /* MenuBarPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* MenuBarPanel.swift */; };
+		A20000000000000000000012 /* SettingsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* SettingsPanel.swift */; };
+		A20000000000000000000013 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A80100000000000000000001 /* Sparkle */; };
+		A20000000000000000000014 /* MenuBarPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* MenuBarPresentation.swift */; };
+		A20000000000000000000015 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000017 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A10000000000000000000001 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		A10000000000000000000002 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
+		A10000000000000000000003 /* UsageParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageParser.swift; sourceTree = "<group>"; };
+		A10000000000000000000004 /* CodexCommandResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexCommandResolver.swift; sourceTree = "<group>"; };
+		A10000000000000000000005 /* AppServerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServerClient.swift; sourceTree = "<group>"; };
+		A10000000000000000000006 /* AuthJSONClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthJSONClient.swift; sourceTree = "<group>"; };
+		A10000000000000000000007 /* UsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageService.swift; sourceTree = "<group>"; };
+		A10000000000000000000008 /* AppStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStorage.swift; sourceTree = "<group>"; };
+		A10000000000000000000009 /* LoginItemService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemService.swift; sourceTree = "<group>"; };
+		A1000000000000000000000A /* UpdaterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterService.swift; sourceTree = "<group>"; };
+		A1000000000000000000000B /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		A1000000000000000000000C /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A1000000000000000000000D /* CodexGaugeNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexGaugeNativeApp.swift; sourceTree = "<group>"; };
+		A1000000000000000000000E /* GlassSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSupport.swift; sourceTree = "<group>"; };
+		A10000000000000000000010 /* UsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCard.swift; sourceTree = "<group>"; };
+		A10000000000000000000011 /* MenuBarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPanel.swift; sourceTree = "<group>"; };
+		A10000000000000000000012 /* SettingsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanel.swift; sourceTree = "<group>"; };
+		A10000000000000000000013 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		A10000000000000000000014 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig.example; sourceTree = "<group>"; };
+		A10000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000016 /* MenuBarPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPresentation.swift; sourceTree = "<group>"; };
+		A10000000000000000000017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A90000000000000000000001 /* Codex Gauge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Codex Gauge.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A40000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A20000000000000000000013 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A30000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A30000000000000000000002 /* CodexGaugeNative */,
+				A30000000000000000000007 /* Config */,
+				A30000000000000000000006 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A30000000000000000000002 /* CodexGaugeNative */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000017 /* Assets.xcassets */,
+				A30000000000000000000003 /* App */,
+				A30000000000000000000004 /* Core */,
+				A30000000000000000000005 /* Services */,
+				A30000000000000000000008 /* Views */,
+			);
+			path = CodexGaugeNative;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000003 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000000000000000000D /* CodexGaugeNativeApp.swift */,
+				A1000000000000000000000C /* AppDelegate.swift */,
+				A1000000000000000000000B /* AppModel.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000004 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000001 /* Models.swift */,
+				A10000000000000000000002 /* JSONValue.swift */,
+				A10000000000000000000003 /* UsageParser.swift */,
+				A10000000000000000000004 /* CodexCommandResolver.swift */,
+				A10000000000000000000005 /* AppServerClient.swift */,
+				A10000000000000000000006 /* AuthJSONClient.swift */,
+				A10000000000000000000016 /* MenuBarPresentation.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000005 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000007 /* UsageService.swift */,
+				A10000000000000000000008 /* AppStorage.swift */,
+				A10000000000000000000009 /* LoginItemService.swift */,
+				A1000000000000000000000A /* UpdaterService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000006 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A90000000000000000000001 /* Codex Gauge.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000007 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000013 /* Base.xcconfig */,
+				A10000000000000000000014 /* Local.xcconfig.example */,
+				A10000000000000000000015 /* Info.plist */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000008 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000000000000000000E /* GlassSupport.swift */,
+				A10000000000000000000010 /* UsageCard.swift */,
+				A10000000000000000000011 /* MenuBarPanel.swift */,
+				A10000000000000000000012 /* SettingsPanel.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* CodexGaugeNative */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A71000000000000000000002 /* Build configuration list for PBXNativeTarget "CodexGaugeNative" */;
+			buildPhases = (
+				A40000000000000000000002 /* Sources */,
+				A40000000000000000000001 /* Frameworks */,
+				A40000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CodexGaugeNative;
+			packageProductDependencies = (
+				A80100000000000000000001 /* Sparkle */,
+			);
+			productName = CodexGaugeNative;
+			productReference = A90000000000000000000001 /* Codex Gauge.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A60000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+				};
+			};
+			buildConfigurationList = A71000000000000000000001 /* Build configuration list for PBXProject "CodexGaugeNative" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = zh_CN;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				zh_CN,
+			);
+			mainGroup = A30000000000000000000001;
+			packageReferences = (
+				A80000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
+			productRefGroup = A30000000000000000000006 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* CodexGaugeNative */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A40000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A20000000000000000000015 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A40000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A20000000000000000000001 /* Models.swift in Sources */,
+				A20000000000000000000002 /* JSONValue.swift in Sources */,
+				A20000000000000000000003 /* UsageParser.swift in Sources */,
+				A20000000000000000000004 /* CodexCommandResolver.swift in Sources */,
+				A20000000000000000000005 /* AppServerClient.swift in Sources */,
+				A20000000000000000000006 /* AuthJSONClient.swift in Sources */,
+				A20000000000000000000007 /* UsageService.swift in Sources */,
+				A20000000000000000000008 /* AppStorage.swift in Sources */,
+				A20000000000000000000009 /* LoginItemService.swift in Sources */,
+				A2000000000000000000000A /* UpdaterService.swift in Sources */,
+				A2000000000000000000000B /* AppModel.swift in Sources */,
+				A2000000000000000000000C /* AppDelegate.swift in Sources */,
+				A2000000000000000000000D /* CodexGaugeNativeApp.swift in Sources */,
+				A2000000000000000000000E /* GlassSupport.swift in Sources */,
+				A20000000000000000000010 /* UsageCard.swift in Sources */,
+				A20000000000000000000011 /* MenuBarPanel.swift in Sources */,
+				A20000000000000000000012 /* SettingsPanel.swift in Sources */,
+				A20000000000000000000014 /* MenuBarPresentation.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A70000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A70000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		A70000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000013 /* Base.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				EXECUTABLE_NAME = CodexGaugeNative;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.ydfk.codex-gauge.native";
+				PRODUCT_NAME = "Codex Gauge";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A70000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000013 /* Base.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				EXECUTABLE_NAME = CodexGaugeNative;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.ydfk.codex-gauge.native";
+				PRODUCT_NAME = "Codex Gauge";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A71000000000000000000001 /* Build configuration list for PBXProject "CodexGaugeNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000001 /* Debug */,
+				A70000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A71000000000000000000002 /* Build configuration list for PBXNativeTarget "CodexGaugeNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000003 /* Debug */,
+				A70000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A80000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A80100000000000000000001 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A60000000000000000000001 /* Project object */;
+}
