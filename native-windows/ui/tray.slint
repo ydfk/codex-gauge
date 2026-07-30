@@ -1,23 +1,17 @@
 export component AppTray inherits SystemTrayIcon {
     in property <string> status-tooltip: "Codex Gauge";
-    in property <bool> main-visible: true;
     in property <bool> top-visible: true;
-    in property <bool> main-pinned: false;
     in property <bool> top-pinned: true;
-    in property <bool> main-locked: false;
     in property <bool> top-locked: false;
     in property <string> version-text;
     in property <string> update-label: "检查更新";
     in property <bool> update-available: false;
     callback show-all;
-    callback toggle-main;
     callback toggle-top;
     callback open-detail;
     callback open-settings;
     callback refresh;
-    callback toggle-main-pin;
     callback toggle-top-pin;
-    callback toggle-main-lock;
     callback toggle-top-lock;
     callback update-action;
     callback quit-app;
@@ -28,20 +22,17 @@ export component AppTray inherits SystemTrayIcon {
     clicked => { root.show-all(); }
 
     Menu {
+        MenuItem { title: "Codex Gauge  " + root.version-text; enabled: false; }
+        MenuSeparator {}
         MenuItem { title: "详细信息"; activated => { root.open-detail(); } }
         MenuItem { title: "设置"; activated => { root.open-settings(); } }
         MenuSeparator {}
-        MenuItem { title: root.main-visible ? "隐藏桌面浮窗" : "显示桌面浮窗"; checkable: true; checked: root.main-visible; activated => { root.toggle-main(); } }
-        MenuItem { title: root.top-visible ? "隐藏顶部浮窗" : "显示顶部浮窗"; checkable: true; checked: root.top-visible; activated => { root.toggle-top(); } }
-        MenuSeparator {}
-        MenuItem { title: "桌面浮窗置顶"; checkable: true; checked: root.main-pinned; activated => { root.toggle-main-pin(); } }
-        MenuItem { title: "顶部浮窗置顶"; checkable: true; checked: root.top-pinned; activated => { root.toggle-top-pin(); } }
-        MenuItem { title: "锁定桌面浮窗位置"; checkable: true; checked: root.main-locked; activated => { root.toggle-main-lock(); } }
-        MenuItem { title: "锁定顶部浮窗位置"; checkable: true; checked: root.top-locked; activated => { root.toggle-top-lock(); } }
+        MenuItem { title: "显示顶部状态条"; checkable: true; checked: root.top-visible; activated => { root.toggle-top(); } }
+        MenuItem { title: "始终置顶"; checkable: true; checked: root.top-pinned; activated => { root.toggle-top-pin(); } }
+        MenuItem { title: "锁定位置"; checkable: true; checked: root.top-locked; activated => { root.toggle-top-lock(); } }
         MenuSeparator {}
         MenuItem { title: "刷新用量"; activated => { root.refresh(); } }
         MenuItem { title: root.update-label; activated => { root.update-action(); } }
-        MenuItem { title: "版本 " + root.version-text; enabled: false; }
         MenuSeparator {}
         MenuItem { title: "退出 Codex Gauge"; activated => { root.quit-app(); } }
     }

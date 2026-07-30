@@ -14,7 +14,7 @@ mod ui_bridge;
 mod update_flow;
 
 use callbacks::wire_callbacks;
-use ui_bridge::{set_logical_size, style_later, UiBridge};
+use ui_bridge::{set_logical_size, style_later, top_height, top_width, UiBridge};
 use update_flow::{start_update_check, start_update_install};
 
 use crate::{
@@ -23,7 +23,7 @@ use crate::{
     model::{CodexUsageSnapshot, SnapshotSource, SnapshotStatus},
     storage::{AppStorage, StateDocument},
     updater::UpdateInfo,
-    windows, AppTray, DetailWindow, MainWidget, SettingsWindow, TopWidget,
+    windows, AppTray, DetailWindow, SettingsWindow, TopWidget,
 };
 
 #[derive(Clone)]
@@ -42,13 +42,11 @@ pub fn run() -> Result<(), slint::PlatformError> {
     config.start_on_boot = windows::autostart_enabled();
     let state = storage.load_state();
 
-    let main = MainWidget::new()?;
     let top = TopWidget::new()?;
     let detail = DetailWindow::new()?;
     let settings = SettingsWindow::new()?;
     let tray = AppTray::new()?;
     let bridge = UiBridge {
-        main: main.as_weak(),
         top: top.as_weak(),
         detail: detail.as_weak(),
         settings: settings.as_weak(),
@@ -75,11 +73,8 @@ pub fn run() -> Result<(), slint::PlatformError> {
     bridge.sync_config(&config);
 
     tray.show()?;
-    style_later(detail.as_weak(), false, 460.0, 520.0);
-    style_later(settings.as_weak(), false, 700.0, 520.0);
-    if config.show_main_on_startup {
-        bridge.show_main();
-    }
+    style_later(detail.as_weak(), false, 440.0, 486.0);
+    style_later(settings.as_weak(), false, 620.0, 500.0);
     if config.show_top_on_startup {
         bridge.show_top();
     }
@@ -101,28 +96,10 @@ pub fn run() -> Result<(), slint::PlatformError> {
 }
 
 fn configure_initial_windows(bridge: &UiBridge, config: &AppConfig) {
-    if let Some(main) = bridge.main.upgrade() {
-        set_logical_size(main.window(), 430.0, 104.0);
-        let position = match (config.windows.main_x, config.windows.main_y) {
-            (Some(x), Some(y)) if windows::valid_saved_position(x, y) => (x, y),
-            _ => {
-                let (width, height) = windows::scaled_size(430, 104);
-                windows::default_main_position(width, height)
-            }
-        };
-        windows::set_position(main.window(), position.0, position.1);
-        main.set_pinned(config.main_always_on_top);
-        main.set_locked(config.main_lock_position);
-        main.set_panel_opacity(config.opacity);
-    }
     if let Some(top) = bridge.top.upgrade() {
-        let logical_width = if top.get_data().five_visible {
-            220.0
-        } else {
-            170.0
-        };
-        set_logical_size(top.window(), logical_width, 28.0);
-        let (physical_width, _) = windows::scaled_size(logical_width as i32, 28);
+        let logical_width = top_width(top.get_data().five_visible);
+        set_logical_size(top.window(), logical_width, top_height(false));
+        let (physical_width, _) = windows::scaled_size(logical_width as i32, 40);
         let default = windows::default_top_position(physical_width);
         let x = config
             .windows
@@ -139,14 +116,14 @@ fn configure_initial_windows(bridge: &UiBridge, config: &AppConfig) {
 
 fn center_panel_windows(bridge: &UiBridge) {
     if let Some(detail) = bridge.detail.upgrade() {
-        set_logical_size(detail.window(), 460.0, 520.0);
-        let (width, height) = windows::scaled_size(460, 520);
+        set_logical_size(detail.window(), 440.0, 486.0);
+        let (width, height) = windows::scaled_size(440, 486);
         let (x, y) = windows::default_main_position(width, height);
         windows::set_position(detail.window(), x, y);
     }
     if let Some(settings) = bridge.settings.upgrade() {
-        set_logical_size(settings.window(), 700.0, 520.0);
-        let (width, height) = windows::scaled_size(700, 520);
+        set_logical_size(settings.window(), 620.0, 500.0);
+        let (width, height) = windows::scaled_size(620, 500);
         let (x, y) = windows::default_main_position(width, height);
         windows::set_position(settings.window(), x, y);
     }
@@ -215,19 +192,6 @@ fn start_position_persistence(bridge: UiBridge, backend: Backend) -> Timer {
     timer.start(TimerMode::Repeated, Duration::from_secs(2), move || {
         let mut config = lock(&backend.config);
         let mut changed = false;
-        if let Some(main) = bridge.main.upgrade() {
-            if main.window().is_visible() {
-                if let Some((x, y)) = windows::position(main.window()) {
-                    if windows::valid_saved_position(x, y)
-                        && (config.windows.main_x != Some(x) || config.windows.main_y != Some(y))
-                    {
-                        config.windows.main_x = Some(x);
-                        config.windows.main_y = Some(y);
-                        changed = true;
-                    }
-                }
-            }
-        }
         if let Some(top) = bridge.top.upgrade() {
             if top.window().is_visible() {
                 if let Some((x, _)) = windows::position(top.window()) {
@@ -255,12 +219,7 @@ fn start_oled_shift(bridge: UiBridge, backend: Backend) -> Timer {
         let offsets = [(-1, 0), (1, 0)];
         let mut index = lock(&step);
         *index = (*index + 1) % offsets.len();
-        let (dx, dy) = offsets[*index];
-        if let Some(main) = bridge.main.upgrade() {
-            if let Some((x, y)) = windows::position(main.window()) {
-                windows::set_position(main.window(), x + dx, y + dy);
-            }
-        }
+        let (dx, _) = offsets[*index];
         if let Some(top) = bridge.top.upgrade() {
             if let Some((x, _)) = windows::position(top.window()) {
                 windows::set_position(top.window(), x + dx, 0);
@@ -277,6 +236,11 @@ fn start_top_hover(bridge: UiBridge) -> Timer {
             let expanded = top.window().is_visible() && windows::cursor_inside(top.window());
             if top.get_expanded() != expanded {
                 top.set_expanded(expanded);
+                set_logical_size(
+                    top.window(),
+                    top_width(top.get_data().five_visible),
+                    top_height(expanded),
+                );
             }
         }
     });
@@ -286,11 +250,8 @@ fn start_top_hover(bridge: UiBridge) -> Timer {
 fn save_settings(window: &SettingsWindow, bridge: &UiBridge, backend: &Backend) {
     let mut config = lock(&backend.config);
     config.start_on_boot = window.get_start_on_boot();
-    config.show_main_on_startup = window.get_show_main();
     config.show_top_on_startup = window.get_show_top();
-    config.main_always_on_top = window.get_main_pinned();
     config.top_always_on_top = window.get_top_pinned();
-    config.main_lock_position = window.get_main_locked();
     config.top_lock_position = window.get_top_locked();
     config.oled_shift_enabled = window.get_oled_shift();
     config.opacity = (window.get_panel_opacity() / 100.0).clamp(0.68, 1.0);
@@ -314,7 +275,6 @@ fn save_settings(window: &SettingsWindow, bridge: &UiBridge, backend: &Backend) 
 
     let _ = windows::set_autostart(saved.start_on_boot);
     bridge.sync_config(&saved);
-    set_main_visible(bridge, backend, saved.show_main_on_startup);
     set_top_visible(bridge, backend, saved.show_top_on_startup);
     let _ = window.hide();
 }
@@ -325,11 +285,8 @@ fn open_settings(bridge: &UiBridge, backend: &Backend) {
         return;
     };
     settings.set_start_on_boot(windows::autostart_enabled());
-    settings.set_show_main(config.show_main_on_startup);
     settings.set_show_top(config.show_top_on_startup);
-    settings.set_main_pinned(config.main_always_on_top);
     settings.set_top_pinned(config.top_always_on_top);
-    settings.set_main_locked(config.main_lock_position);
     settings.set_top_locked(config.top_lock_position);
     settings.set_oled_shift(config.oled_shift_enabled);
     settings.set_panel_opacity(config.opacity * 100.0);
@@ -345,21 +302,10 @@ fn open_settings(bridge: &UiBridge, backend: &Backend) {
     settings.set_update_on_start(config.update.check_on_startup);
     settings.set_update_endpoint(config.update.endpoint.into());
     settings.set_version_text(format!("v{}", env!("CARGO_PKG_VERSION")).into());
-    set_logical_size(settings.window(), 700.0, 520.0);
+    set_logical_size(settings.window(), 620.0, 500.0);
     let _ = settings.show();
-    style_later(settings.as_weak(), false, 700.0, 520.0);
+    style_later(settings.as_weak(), false, 620.0, 500.0);
     windows::bring_to_front(settings.window());
-}
-
-fn set_main_visible(bridge: &UiBridge, backend: &Backend, visible: bool) {
-    lock(&backend.config).show_main_on_startup = visible;
-    backend.storage.save_config(&lock(&backend.config));
-    if visible {
-        bridge.show_main();
-    } else if let Some(main) = bridge.main.upgrade() {
-        let _ = main.hide();
-    }
-    bridge.sync_visibility();
 }
 
 fn set_top_visible(bridge: &UiBridge, backend: &Backend, visible: bool) {
@@ -373,23 +319,9 @@ fn set_top_visible(bridge: &UiBridge, backend: &Backend, visible: bool) {
     bridge.sync_visibility();
 }
 
-fn toggle_main_pin(bridge: &UiBridge, backend: &Backend) {
-    let mut config = lock(&backend.config);
-    config.main_always_on_top = !config.main_always_on_top;
-    backend.storage.save_config(&config);
-    bridge.sync_config(&config);
-}
-
 fn toggle_top_pin(bridge: &UiBridge, backend: &Backend) {
     let mut config = lock(&backend.config);
     config.top_always_on_top = !config.top_always_on_top;
-    backend.storage.save_config(&config);
-    bridge.sync_config(&config);
-}
-
-fn toggle_main_lock(bridge: &UiBridge, backend: &Backend) {
-    let mut config = lock(&backend.config);
-    config.main_lock_position = !config.main_lock_position;
     backend.storage.save_config(&config);
     bridge.sync_config(&config);
 }

@@ -101,7 +101,6 @@ mod tests {
         let config = storage.load_config();
 
         assert!(config.top_always_on_top);
-        assert!(!config.main_always_on_top);
         assert!(temp.path().join("config.json").exists());
     }
 
@@ -110,13 +109,13 @@ mod tests {
         let temp = tempfile::tempdir().expect("temp dir");
         let storage = AppStorage::with_root(temp.path().to_path_buf());
         let mut config = storage.load_config();
-        config.main_lock_position = true;
-        config.windows.main_x = Some(320);
+        config.top_lock_position = true;
+        config.windows.top_x = Some(320);
         storage.save_config(&config);
 
         let loaded = storage.load_config();
-        assert!(loaded.main_lock_position);
-        assert_eq!(loaded.windows.main_x, Some(320));
+        assert!(loaded.top_lock_position);
+        assert_eq!(loaded.windows.top_x, Some(320));
     }
 
     #[test]

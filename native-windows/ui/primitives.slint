@@ -17,52 +17,64 @@ export struct GaugeData {
     updated-text: string,
 }
 
-export component GlassSurface inherits Rectangle {
-    in property <float> surface-opacity: 0.94;
+export component AppLogo inherits Image {
+    source: @image-url("../assets/app-logo.png");
+    image-fit: contain;
+}
 
-    opacity: root.surface-opacity;
-    background: #111820d6;
+export component WindowSurface inherits Rectangle {
+    background: #12171ff7;
     border-width: 1px;
-    border-color: #e5fbff3d;
+    border-color: #65718073;
+    border-radius: 18px;
+
+    Rectangle {
+        x: 1px;
+        y: 1px;
+        width: parent.width - 2px;
+        height: 54px;
+        border-radius: 17px;
+        background: @linear-gradient(90deg, #ffffff12 0%, #7f91ae08 58%, #ffffff02 100%);
+    }
+
+    Rectangle {
+        x: 20px;
+        y: 1px;
+        width: parent.width - 40px;
+        height: 1px;
+        background: @linear-gradient(90deg, #ffffff00 0%, #dce8ff73 45%, #ffffff00 100%);
+    }
+}
+
+export component TopSurface inherits Rectangle {
+    in property <float> surface-opacity: 0.96;
+    opacity: root.surface-opacity;
+    background: #10151df8;
+    border-width: 1px;
+    border-color: #74808d85;
     border-radius: 17px;
 
     Rectangle {
         x: 1px;
         y: 1px;
         width: parent.width - 2px;
-        height: 39px;
-        background: @linear-gradient(90deg, #ffffff2b 0%, #c4f7ff12 42%, #8bbdff08 72%, #ffffff02 100%);
+        height: 38px;
         border-radius: 16px;
+        background: @linear-gradient(90deg, #ffffff13 0%, #8392ad09 48%, #ffffff03 100%);
     }
 
     Rectangle {
-        x: 12px;
+        x: 18px;
         y: 1px;
-        width: parent.width - 24px;
+        width: parent.width - 36px;
         height: 1px;
-        background: @linear-gradient(90deg, #ffffff00 0%, #ffffffb5 38%, #c8f5ff6b 67%, #ffffff00 100%);
-    }
-
-    Rectangle {
-        x: 1px;
-        y: 12px;
-        width: 1px;
-        height: parent.height - 28px;
-        background: #ffffff45;
-    }
-
-    Rectangle {
-        x: parent.width - 2px;
-        y: 16px;
-        width: 1px;
-        height: parent.height - 34px;
-        background: #71b5d524;
+        background: @linear-gradient(90deg, #ffffff00 0%, #e6efff82 50%, #ffffff00 100%);
     }
 }
 
 export component Hairline inherits Rectangle {
     height: 1px;
-    background: @linear-gradient(90deg, #ffffff00 0%, #ffffff24 12%, #ffffff24 88%, #ffffff00 100%);
+    background: #ffffff18;
 }
 
 export component ActionButton inherits Rectangle {
@@ -71,21 +83,21 @@ export component ActionButton inherits Rectangle {
     in property <bool> danger: false;
     callback clicked;
 
-    height: 28px;
+    height: 30px;
     border-radius: 8px;
     border-width: 1px;
-    border-color: root.primary ? #8ff3dd66 : root.danger ? #ff92984c : #ffffff2d;
+    border-color: root.primary ? #8a9fff91 : root.danger ? #ff7b8a66 : #ffffff29;
     background: touch.pressed
-        ? (root.primary ? #5fe0c855 : root.danger ? #c64e5c3e : #ffffff24)
+        ? (root.primary ? #637cff66 : root.danger ? #a43b493e : #ffffff22)
         : touch.has-hover
-            ? (root.primary ? #65ead33b : root.danger ? #d4586630 : #ffffff1d)
-            : (root.primary ? #5bddc929 : root.danger ? #b94c5822 : #ffffff10);
+            ? (root.primary ? #637cff4c : root.danger ? #b2445230 : #ffffff17)
+            : (root.primary ? #637cff35 : root.danger ? #9a394521 : #ffffff0d);
 
     Text {
         text: root.label;
-        color: root.primary ? #baffef : root.danger ? #ffc9ce : #eff7fb;
+        color: root.primary ? #edf0ff : root.danger ? #ffcbd1 : #e8edf3;
         font-family: "Segoe UI Variable Text";
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 650;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -101,18 +113,18 @@ export component IconButton inherits Rectangle {
     in property <string> label;
     callback clicked;
 
-    width: 30px;
-    height: 30px;
-    border-radius: 15px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
     border-width: 1px;
-    border-color: #ffffff32;
-    background: touch.pressed ? #ffffff26 : touch.has-hover ? #ffffff1c : #ffffff0c;
+    border-color: touch.has-hover ? #ffffff3d : #ffffff22;
+    background: touch.pressed ? #ffffff21 : touch.has-hover ? #ffffff14 : transparent;
 
     Text {
         text: root.label;
-        color: #f6fbff;
+        color: #dfe6ed;
         font-family: "Segoe UI Variable Text";
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 450;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -124,94 +136,70 @@ export component IconButton inherits Rectangle {
     }
 }
 
-export component SegmentBar inherits Rectangle {
+export component MeterBar inherits Rectangle {
     in property <float> value;
     in property <color> accent;
 
-    height: 6px;
-    background: transparent;
+    height: 5px;
+    border-radius: 3px;
+    background: #ffffff15;
 
-    HorizontalLayout {
-        spacing: 3px;
-
-        for segment[index] in 24: Rectangle {
-            border-radius: 2px;
-            background: index < root.value * 24 / 100 ? root.accent : #ffffff17;
-        }
+    Rectangle {
+        width: max(5px, min(parent.width, parent.width * root.value / 100));
+        height: parent.height;
+        border-radius: parent.border-radius;
+        background: root.accent;
     }
 }
 
-export component UsageRow inherits Rectangle {
+export component MiniMetric inherits Rectangle {
     in property <string> label;
-    in property <string> remaining-text;
-    in property <string> reset-text;
-    in property <float> remaining;
+    in property <string> value;
     in property <color> accent;
 
-    height: 29px;
     background: transparent;
 
     Text {
         x: 0px;
-        width: 30px;
+        y: 1px;
         text: root.label;
-        color: #dce8ef;
+        color: #83909e;
         font-family: "Segoe UI Variable Text";
-        font-size: 13px;
+        font-size: 9px;
         font-weight: 700;
-        vertical-alignment: center;
-    }
-
-    SegmentBar {
-        x: 36px;
-        y: 12px;
-        width: parent.width - 157px;
-        value: root.remaining;
-        accent: root.accent;
+        letter-spacing: 0px;
     }
 
     Text {
-        x: parent.width - 113px;
-        width: 47px;
-        text: root.remaining-text;
+        x: 0px;
+        y: 14px;
+        width: parent.width;
+        text: root.value;
         color: root.accent;
         font-family: "Segoe UI Variable Display";
-        font-size: 17px;
-        font-weight: 750;
-        horizontal-alignment: right;
-        vertical-alignment: center;
-    }
-
-    Text {
-        x: parent.width - 60px;
-        width: 60px;
-        text: root.reset-text;
-        color: #aebdc8;
-        font-family: "Segoe UI Variable Text";
-        font-size: 10px;
-        font-weight: 600;
-        horizontal-alignment: right;
-        vertical-alignment: center;
+        font-size: 14px;
+        font-weight: 740;
+        overflow: elide;
     }
 }
 
 export component GlassToggle inherits Rectangle {
     in-out property <bool> checked;
 
-    width: 38px;
+    width: 36px;
     height: 20px;
     border-radius: 10px;
     border-width: 1px;
-    border-color: root.checked ? #87eed868 : #ffffff2b;
-    background: root.checked ? #47ccb43d : #ffffff10;
+    border-color: root.checked ? #91a3ff8f : #ffffff2b;
+    background: root.checked ? #6278e651 : #ffffff0f;
 
     Rectangle {
-        x: root.checked ? 20px : 3px;
+        x: root.checked ? 19px : 3px;
         y: 3px;
         width: 14px;
         height: 14px;
         border-radius: 7px;
-        background: root.checked ? #8ef0dc : #b7c1c9;
+        background: root.checked ? #e8ebff : #aab4bf;
     }
 
     touch := TouchArea {
@@ -220,39 +208,73 @@ export component GlassToggle inherits Rectangle {
     }
 }
 
+export component ToggleRow inherits Rectangle {
+    in property <string> label;
+    in property <string> description: "";
+    in-out property <bool> checked;
+
+    height: root.description == "" ? 34px : 44px;
+    background: transparent;
+
+    Text {
+        x: 0px;
+        y: root.description == "" ? 0px : 5px;
+        width: parent.width - 50px;
+        height: 20px;
+        text: root.label;
+        color: #dce3ea;
+        font-family: "Segoe UI Variable Text";
+        font-size: 11px;
+        font-weight: 620;
+        vertical-alignment: center;
+    }
+
+    if root.description != "": Text {
+        x: 0px;
+        y: 23px;
+        width: parent.width - 50px;
+        text: root.description;
+        color: #788796;
+        font-family: "Segoe UI Variable Text";
+        font-size: 9px;
+        overflow: elide;
+    }
+
+    GlassToggle {
+        x: parent.width - 36px;
+        y: (parent.height - self.height) / 2;
+        checked <=> root.checked;
+    }
+}
+
+export component FieldLabel inherits Text {
+    color: #7f8e9d;
+    font-family: "Segoe UI Variable Text";
+    font-size: 9px;
+    font-weight: 700;
+}
+
 export component GlassSlider inherits Rectangle {
     in-out property <float> value;
     in property <float> minimum: 0;
     in property <float> maximum: 100;
 
-    height: 32px;
+    height: 28px;
     background: transparent;
-
-    Text {
-        x: parent.width - 38px;
-        y: 0px;
-        width: 38px;
-        text: round(root.value) + "%";
-        color: #a8f4e2;
-        font-family: "Segoe UI Variable Text";
-        font-size: 10px;
-        font-weight: 700;
-        horizontal-alignment: right;
-    }
 
     Rectangle {
         x: 0px;
-        y: 21px;
-        width: parent.width;
+        y: 12px;
+        width: parent.width - 42px;
         height: 4px;
         border-radius: 2px;
-        background: #ffffff14;
+        background: #ffffff15;
 
         Rectangle {
             width: max(0px, min(parent.width, parent.width * (root.value - root.minimum) / (root.maximum - root.minimum)));
             height: parent.height;
             border-radius: parent.border-radius;
-            background: @linear-gradient(90deg, #66d9e8 0%, #80efd4 100%);
+            background: #8799ff;
         }
 
         Rectangle {
@@ -262,12 +284,26 @@ export component GlassSlider inherits Rectangle {
             height: 12px;
             border-radius: 6px;
             border-width: 2px;
-            border-color: #d9fff6;
-            background: #61d9c3;
+            border-color: #e7eaff;
+            background: #7186f0;
         }
     }
 
+    Text {
+        x: parent.width - 34px;
+        width: 34px;
+        height: parent.height;
+        text: round(root.value) + "%";
+        color: #aebaff;
+        font-family: "Segoe UI Variable Text";
+        font-size: 10px;
+        font-weight: 700;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+    }
+
     touch := TouchArea {
+        width: parent.width - 42px;
         mouse-cursor: pointer;
         clicked => {
             root.value = max(root.minimum, min(root.maximum, root.minimum + touch.mouse-x / touch.width * (root.maximum - root.minimum)));
@@ -278,64 +314,32 @@ export component GlassSlider inherits Rectangle {
     }
 }
 
-export component ToggleRow inherits Rectangle {
-    in property <string> label;
-    in-out property <bool> checked;
-
-    height: 30px;
-    background: transparent;
-
-    Text {
-        x: 0px;
-        width: parent.width - 52px;
-        text: root.label;
-        color: #dbe5ec;
-        font-family: "Segoe UI Variable Text";
-        font-size: 12px;
-        font-weight: 550;
-        vertical-alignment: center;
-    }
-
-    GlassToggle {
-        x: parent.width - 38px;
-        y: 5px;
-        checked <=> root.checked;
-    }
-}
-
-export component FieldLabel inherits Text {
-    color: #8fa3b2;
-    font-family: "Segoe UI Variable Text";
-    font-size: 10px;
-    font-weight: 650;
-}
-
 export component MetricCell inherits Rectangle {
     in property <string> label;
     in property <string> value;
-    in property <color> value-color: #eef6fa;
+    in property <color> value-color: #edf2f6;
 
     background: transparent;
 
     Text {
         x: 0px;
-        y: 6px;
+        y: 7px;
         text: root.label;
-        color: #8499a8;
+        color: #7e8d9b;
         font-family: "Segoe UI Variable Text";
-        font-size: 10px;
-        font-weight: 600;
+        font-size: 9px;
+        font-weight: 650;
     }
 
     Text {
         x: 0px;
-        y: 23px;
+        y: 24px;
         width: parent.width - 8px;
         text: root.value;
         color: root.value-color;
         font-family: "Segoe UI Variable Text";
-        font-size: 13px;
-        font-weight: 680;
+        font-size: 12px;
+        font-weight: 660;
         overflow: elide;
     }
 
@@ -344,6 +348,6 @@ export component MetricCell inherits Rectangle {
         y: parent.height - 1px;
         width: parent.width;
         height: 1px;
-        background: #ffffff16;
+        background: #ffffff12;
     }
 }

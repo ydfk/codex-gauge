@@ -1,144 +1,8 @@
-import { GaugeData, GlassSurface, ActionButton, Hairline, UsageRow } from "primitives.slint";
-
-export component MainWidget inherits Window {
-    in property <GaugeData> data;
-    in property <float> panel-opacity: 0.94;
-    in property <bool> pinned: false;
-    in property <bool> locked: false;
-    callback refresh;
-    callback toggle-detail;
-    callback open-settings;
-    callback hide-window;
-    callback start-drag;
-    callback toggle-pin;
-    callback toggle-lock;
-
-    width: 430px;
-    height: 104px;
-    no-frame: true;
-    background: transparent;
-    always-on-top: root.pinned;
-    title: "Codex Gauge";
-
-    GlassSurface {
-        width: parent.width;
-        height: parent.height;
-        surface-opacity: root.panel-opacity;
-    }
-
-    drag := TouchArea {
-        x: 8px;
-        y: 4px;
-        width: parent.width - 16px;
-        height: 34px;
-        mouse-cursor: move;
-        pointer-event(event) => {
-            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
-                root.start-drag();
-            }
-        }
-        double-clicked => { root.toggle-detail(); }
-    }
-
-    Text {
-        x: 17px;
-        y: 7px;
-        text: "Codex";
-        color: #f7fbfd;
-        font-family: "Segoe UI Variable Display";
-        font-size: 19px;
-        font-weight: 760;
-    }
-
-    Text {
-        x: 78px;
-        y: 13px;
-        width: 183px;
-        text: root.data.five-used-text + " · " + root.data.seven-used-text;
-        color: #b8c7d1;
-        font-family: "Segoe UI Variable Text";
-        font-size: 10px;
-        font-weight: 600;
-        overflow: elide;
-    }
-
-    ActionButton {
-        x: parent.width - 127px;
-        y: 6px;
-        width: 70px;
-        height: 26px;
-        label: root.data.reset-count-text;
-        primary: true;
-        clicked => { root.toggle-detail(); }
-    }
-
-    ActionButton {
-        x: parent.width - 52px;
-        y: 6px;
-        width: 40px;
-        height: 26px;
-        label: "详情";
-        clicked => { root.toggle-detail(); }
-    }
-
-    Hairline {
-        x: 12px;
-        y: 37px;
-        width: parent.width - 24px;
-    }
-
-    VerticalLayout {
-        x: 17px;
-        y: 40px;
-        width: parent.width - 34px;
-        spacing: 0px;
-
-        UsageRow {
-            label: "5h";
-            remaining-text: root.data.five-remaining-text;
-            reset-text: root.data.five-reset-text;
-            remaining: root.data.five-remaining;
-            accent: root.data.five-remaining >= 70 ? #80efd4
-                : root.data.five-remaining >= 50 ? #61d9e8
-                : root.data.five-remaining >= 30 ? #7caeff
-                : root.data.five-remaining >= 15 ? #f3c867
-                : root.data.five-remaining >= 5 ? #ff9169
-                : #ff6378;
-        }
-
-        UsageRow {
-            label: "7d";
-            remaining-text: root.data.seven-remaining-text;
-            reset-text: root.data.seven-reset-text;
-            remaining: root.data.seven-remaining;
-            accent: root.data.seven-remaining >= 70 ? #80efd4
-                : root.data.seven-remaining >= 50 ? #61d9e8
-                : root.data.seven-remaining >= 30 ? #7caeff
-                : root.data.seven-remaining >= 15 ? #f3c867
-                : root.data.seven-remaining >= 5 ? #ff9169
-                : #ff6378;
-        }
-    }
-
-    ContextMenuArea {
-        width: parent.width;
-        height: parent.height;
-
-        Menu {
-            MenuItem { title: "刷新用量"; activated => { root.refresh(); } }
-            MenuSeparator {}
-            MenuItem { title: root.pinned ? "取消桌面浮窗置顶" : "桌面浮窗置顶"; activated => { root.toggle-pin(); } }
-            MenuItem { title: root.locked ? "解锁桌面浮窗位置" : "锁定桌面浮窗位置"; activated => { root.toggle-lock(); } }
-            MenuSeparator {}
-            MenuItem { title: "打开设置"; activated => { root.open-settings(); } }
-            MenuItem { title: "隐藏桌面浮窗"; activated => { root.hide-window(); } }
-        }
-    }
-}
+import { GaugeData, AppLogo, TopSurface, Hairline, MeterBar } from "primitives.slint";
 
 export component TopWidget inherits Window {
     in property <GaugeData> data;
-    in property <float> panel-opacity: 0.94;
+    in property <float> panel-opacity: 0.96;
     in property <bool> pinned: true;
     in property <bool> locked: false;
     in property <bool> expanded: false;
@@ -149,118 +13,229 @@ export component TopWidget inherits Window {
     callback toggle-pin;
     callback toggle-lock;
 
-    width: root.data.five-visible ? 220px : 170px;
-    height: root.expanded ? 94px : 28px;
+    width: root.data.five-visible ? 342px : 254px;
+    height: root.expanded ? 124px : 40px;
     no-frame: true;
     background: transparent;
     always-on-top: root.pinned;
-    title: "Codex Gauge Status";
+    title: "Codex Gauge";
 
-    GlassSurface {
+    TopSurface {
+        x: 0px;
+        y: -15px;
         width: parent.width;
-        height: parent.height;
+        height: parent.height + 15px;
         surface-opacity: root.panel-opacity;
     }
 
-    HorizontalLayout {
-        x: 11px;
-        y: 0px;
-        width: parent.width - 22px;
-        height: 28px;
-        spacing: 9px;
+    AppLogo {
+        x: 10px;
+        y: 8px;
+        width: 24px;
+        height: 24px;
+    }
 
-        if root.data.five-visible: Text {
-            text: "5h " + root.data.five-remaining-text;
-            color: root.data.five-remaining >= 70 ? #80efd4
-                : root.data.five-remaining >= 50 ? #61d9e8
-                : root.data.five-remaining >= 30 ? #7caeff
-                : root.data.five-remaining >= 15 ? #f3c867
-                : root.data.five-remaining >= 5 ? #ff9169
-                : #ff6378;
+    Rectangle {
+        x: 43px;
+        y: 9px;
+        width: 1px;
+        height: 22px;
+        background: #ffffff1b;
+    }
+
+    if root.data.five-visible: Rectangle {
+        x: 55px;
+        y: 0px;
+        width: 76px;
+        height: 40px;
+        background: transparent;
+
+        Text {
+            x: 0px;
+            y: 6px;
+            text: "5h";
+            color: #7d8b99;
             font-family: "Segoe UI Variable Text";
-            font-size: 12px;
-            font-weight: 720;
-            vertical-alignment: center;
+            font-size: 9px;
+            font-weight: 700;
         }
 
         Text {
-            text: "7d " + root.data.seven-remaining-text;
-            color: root.data.seven-remaining >= 70 ? #80efd4
-                : root.data.seven-remaining >= 50 ? #61d9e8
-                : root.data.seven-remaining >= 30 ? #7caeff
-                : root.data.seven-remaining >= 15 ? #f3c867
-                : root.data.seven-remaining >= 5 ? #ff9169
-                : #ff6378;
+            x: 0px;
+            y: 17px;
+            width: parent.width;
+            text: root.data.five-remaining-text;
+            color: root.data.five-remaining >= 70 ? #7ce5ca
+                : root.data.five-remaining >= 50 ? #69d4e5
+                : root.data.five-remaining >= 30 ? #7da8ff
+                : root.data.five-remaining >= 15 ? #efc463
+                : root.data.five-remaining >= 5 ? #ff946b
+                : #ff6578;
+            font-family: "Segoe UI Variable Display";
+            font-size: 14px;
+            font-weight: 750;
+        }
+    }
+
+    Rectangle {
+        x: root.data.five-visible ? 139px : 55px;
+        y: 0px;
+        width: 76px;
+        height: 40px;
+        background: transparent;
+
+        Text {
+            x: 0px;
+            y: 6px;
+            text: "7d";
+            color: #7d8b99;
             font-family: "Segoe UI Variable Text";
-            font-size: 12px;
-            font-weight: 720;
-            vertical-alignment: center;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        Text {
+            x: 0px;
+            y: 17px;
+            width: parent.width;
+            text: root.data.seven-remaining-text;
+            color: root.data.seven-remaining >= 70 ? #7ce5ca
+                : root.data.seven-remaining >= 50 ? #69d4e5
+                : root.data.seven-remaining >= 30 ? #7da8ff
+                : root.data.seven-remaining >= 15 ? #efc463
+                : root.data.seven-remaining >= 5 ? #ff946b
+                : #ff6578;
+            font-family: "Segoe UI Variable Display";
+            font-size: 14px;
+            font-weight: 750;
+        }
+    }
+
+    Rectangle {
+        x: parent.width - 103px;
+        y: 9px;
+        width: 1px;
+        height: 22px;
+        background: #ffffff1b;
+    }
+
+    Text {
+        x: parent.width - 91px;
+        y: 6px;
+        text: "RESET";
+        color: #7d8b99;
+        font-family: "Segoe UI Variable Text";
+        font-size: 8px;
+        font-weight: 700;
+    }
+
+    Text {
+        x: parent.width - 91px;
+        y: 17px;
+        width: 78px;
+        text: root.data.reset-count-text;
+        color: #eef2f6;
+        font-family: "Segoe UI Variable Display";
+        font-size: 13px;
+        font-weight: 720;
+        overflow: elide;
+    }
+
+    if root.expanded: Rectangle {
+        x: 12px;
+        y: 40px;
+        width: parent.width - 24px;
+        height: 76px;
+        background: transparent;
+
+        Hairline { width: parent.width; }
+
+        if root.data.five-visible: Rectangle {
+            x: 0px;
+            y: 9px;
+            width: parent.width;
+            height: 23px;
+            background: transparent;
+
+            Text {
+                width: 24px;
+                height: parent.height;
+                text: "5h";
+                color: #c7d0d9;
+                font-family: "Segoe UI Variable Text";
+                font-size: 10px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            MeterBar {
+                x: 31px;
+                y: 9px;
+                width: parent.width - 154px;
+                value: root.data.five-remaining;
+                accent: root.data.five-remaining >= 70 ? #7ce5ca : root.data.five-remaining >= 30 ? #7da8ff : root.data.five-remaining >= 15 ? #efc463 : #ff6578;
+            }
+            Text {
+                x: parent.width - 115px;
+                width: 115px;
+                height: parent.height;
+                text: root.data.five-reset-text;
+                color: #8e9aa7;
+                font-family: "Segoe UI Variable Text";
+                font-size: 9px;
+                font-weight: 600;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+            }
         }
 
         Rectangle {
-            width: 1px;
-            height: 28px;
+            x: 0px;
+            y: root.data.five-visible ? 35px : 10px;
+            width: parent.width;
+            height: 23px;
             background: transparent;
 
-            Rectangle {
-                y: 8px;
-                width: 1px;
-                height: 12px;
-                background: #ffffff27;
+            Text {
+                width: 24px;
+                height: parent.height;
+                text: "7d";
+                color: #c7d0d9;
+                font-family: "Segoe UI Variable Text";
+                font-size: 10px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            MeterBar {
+                x: 31px;
+                y: 9px;
+                width: parent.width - 154px;
+                value: root.data.seven-remaining;
+                accent: root.data.seven-remaining >= 70 ? #7ce5ca : root.data.seven-remaining >= 30 ? #7da8ff : root.data.seven-remaining >= 15 ? #efc463 : #ff6578;
+            }
+            Text {
+                x: parent.width - 115px;
+                width: 115px;
+                height: parent.height;
+                text: root.data.seven-reset-text;
+                color: #8e9aa7;
+                font-family: "Segoe UI Variable Text";
+                font-size: 9px;
+                font-weight: 600;
+                horizontal-alignment: right;
+                vertical-alignment: center;
             }
         }
 
         Text {
-            text: root.data.reset-count-text;
-            color: #dce6ec;
-            font-family: "Segoe UI Variable Text";
-            font-size: 11px;
-            font-weight: 620;
-            vertical-alignment: center;
-        }
-    }
-
-    if root.expanded: Rectangle {
-        x: 10px;
-        y: 33px;
-        width: parent.width - 20px;
-        height: 51px;
-        background: transparent;
-
-        Hairline {
             x: 0px;
-            y: 0px;
+            y: root.data.five-visible ? 63px : 43px;
             width: parent.width;
-        }
-
-        if root.data.five-visible: Text {
-            x: 2px;
-            y: 7px;
-            text: "5h  剩余 " + root.data.five-remaining-text + "  ·  " + root.data.five-used-text;
-            color: #d9e5ec;
+            text: root.data.status-text + "  ·  " + root.data.source-text + "  ·  " + root.data.updated-text;
+            color: #6f7f8e;
             font-family: "Segoe UI Variable Text";
-            font-size: 11px;
+            font-size: 8px;
             font-weight: 600;
-        }
-
-        Text {
-            x: 2px;
-            y: root.data.five-visible ? 24px : 8px;
-            text: "7d  剩余 " + root.data.seven-remaining-text + "  ·  " + root.data.seven-used-text;
-            color: #d9e5ec;
-            font-family: "Segoe UI Variable Text";
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        Text {
-            x: 2px;
-            y: root.data.five-visible ? 41px : 29px;
-            text: root.data.reset-count-text;
-            color: #8fa5b4;
-            font-family: "Segoe UI Variable Text";
-            font-size: 10px;
-            font-weight: 600;
+            overflow: elide;
         }
     }
 
@@ -271,7 +246,7 @@ export component TopWidget inherits Window {
         drag := TouchArea {
             width: parent.width;
             height: parent.height;
-            mouse-cursor: move;
+            mouse-cursor: root.locked ? default : move;
             pointer-event(event) => {
                 if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
                     root.start-drag();
@@ -282,11 +257,10 @@ export component TopWidget inherits Window {
 
         Menu {
             MenuItem { title: "刷新用量"; activated => { root.refresh(); } }
+            MenuItem { title: root.pinned ? "取消始终置顶" : "始终置顶"; activated => { root.toggle-pin(); } }
+            MenuItem { title: root.locked ? "解锁位置" : "锁定位置"; activated => { root.toggle-lock(); } }
             MenuSeparator {}
-            MenuItem { title: root.pinned ? "取消顶部浮窗置顶" : "顶部浮窗置顶"; activated => { root.toggle-pin(); } }
-            MenuItem { title: root.locked ? "解锁顶部浮窗位置" : "锁定顶部浮窗位置"; activated => { root.toggle-lock(); } }
-            MenuSeparator {}
-            MenuItem { title: "隐藏顶部浮窗"; activated => { root.hide-window(); } }
+            MenuItem { title: "隐藏顶部状态条"; activated => { root.hide-window(); } }
         }
     }
 }

@@ -5,50 +5,18 @@ use std::{
 
 use slint::ComponentHandle;
 
-use crate::{windows, DetailWindow, MainWidget, SettingsWindow, TopWidget};
+use crate::{windows, DetailWindow, SettingsWindow, TopWidget};
 
 use super::{
-    lock, open_settings, quit, request_refresh, save_settings, set_main_visible, set_top_visible,
-    start_update_check, start_update_install, toggle_main_lock, toggle_main_pin, toggle_top_lock,
-    toggle_top_pin, Backend, UiBridge,
+    lock, open_settings, quit, request_refresh, save_settings, set_top_visible, start_update_check,
+    start_update_install, toggle_top_lock, toggle_top_pin, Backend, UiBridge,
 };
 
 pub(super) fn wire_callbacks(bridge: &UiBridge, backend: &Backend) {
-    wire_main_callbacks(bridge, backend);
     wire_top_callbacks(bridge, backend);
     wire_detail_callbacks(bridge, backend);
     wire_settings_callbacks(bridge, backend);
     wire_tray_callbacks(bridge, backend);
-}
-
-fn wire_main_callbacks(bridge: &UiBridge, backend: &Backend) {
-    let Some(main) = bridge.main.upgrade() else {
-        return;
-    };
-    bind_refresh(&main, bridge, backend);
-    let ui = bridge.clone();
-    main.on_toggle_detail(move || ui.toggle_detail());
-    let ui = bridge.clone();
-    let state = backend.clone();
-    main.on_open_settings(move || open_settings(&ui, &state));
-    let ui = bridge.clone();
-    let state = backend.clone();
-    main.on_hide_window(move || set_main_visible(&ui, &state, false));
-    let weak = main.as_weak();
-    let config = backend.config.clone();
-    main.on_start_drag(move || {
-        if !lock(&config).main_lock_position {
-            if let Some(window) = weak.upgrade() {
-                windows::begin_window_drag(window.window());
-            }
-        }
-    });
-    let ui = bridge.clone();
-    let state = backend.clone();
-    main.on_toggle_pin(move || toggle_main_pin(&ui, &state));
-    let ui = bridge.clone();
-    let state = backend.clone();
-    main.on_toggle_lock(move || toggle_main_lock(&ui, &state));
 }
 
 fn wire_top_callbacks(bridge: &UiBridge, backend: &Backend) {
@@ -153,15 +121,6 @@ fn wire_tray_callbacks(bridge: &UiBridge, backend: &Backend) {
     });
     let ui = bridge.clone();
     let state = backend.clone();
-    tray.on_toggle_main(move || {
-        let visible = ui
-            .main
-            .upgrade()
-            .is_some_and(|window| window.window().is_visible());
-        set_main_visible(&ui, &state, !visible);
-    });
-    let ui = bridge.clone();
-    let state = backend.clone();
     tray.on_toggle_top(move || {
         let visible = ui
             .top
@@ -179,13 +138,7 @@ fn wire_tray_callbacks(bridge: &UiBridge, backend: &Backend) {
     tray.on_refresh(move || request_refresh(ui.clone(), state.clone()));
     let ui = bridge.clone();
     let state = backend.clone();
-    tray.on_toggle_main_pin(move || toggle_main_pin(&ui, &state));
-    let ui = bridge.clone();
-    let state = backend.clone();
     tray.on_toggle_top_pin(move || toggle_top_pin(&ui, &state));
-    let ui = bridge.clone();
-    let state = backend.clone();
-    tray.on_toggle_main_lock(move || toggle_main_lock(&ui, &state));
     let ui = bridge.clone();
     let state = backend.clone();
     tray.on_toggle_top_lock(move || toggle_top_lock(&ui, &state));
@@ -216,7 +169,7 @@ macro_rules! impl_refresh_callback {
     )+};
 }
 
-impl_refresh_callback!(MainWidget, TopWidget, DetailWindow, SettingsWindow);
+impl_refresh_callback!(TopWidget, DetailWindow, SettingsWindow);
 
 fn bind_refresh(component: &impl RefreshCallback, bridge: &UiBridge, backend: &Backend) {
     let ui = bridge.clone();

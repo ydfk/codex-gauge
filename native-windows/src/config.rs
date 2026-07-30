@@ -2,14 +2,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(default)]
 pub struct AppConfig {
     pub version: u32,
     pub start_on_boot: bool,
-    pub show_main_on_startup: bool,
     pub show_top_on_startup: bool,
-    pub main_always_on_top: bool,
     pub top_always_on_top: bool,
-    pub main_lock_position: bool,
     pub top_lock_position: bool,
     pub oled_shift_enabled: bool,
     pub opacity: f32,
@@ -38,8 +36,6 @@ pub struct UpdateConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowPositions {
-    pub main_x: Option<i32>,
-    pub main_y: Option<i32>,
     pub top_x: Option<i32>,
 }
 
@@ -48,11 +44,8 @@ impl Default for AppConfig {
         Self {
             version: 1,
             start_on_boot: false,
-            show_main_on_startup: true,
             show_top_on_startup: true,
-            main_always_on_top: false,
             top_always_on_top: true,
-            main_lock_position: false,
             top_lock_position: false,
             oled_shift_enabled: false,
             opacity: 0.92,
@@ -74,6 +67,7 @@ impl Default for AppConfig {
 
 impl AppConfig {
     pub fn normalize(&mut self) {
+        self.version = 2;
         self.refresh_interval_seconds = self.refresh_interval_seconds.clamp(30, 3600);
         self.opacity = self.opacity.clamp(0.68, 1.0);
         if self.codex_command.trim().is_empty() {
