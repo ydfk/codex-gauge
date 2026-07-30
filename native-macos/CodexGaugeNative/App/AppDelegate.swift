@@ -23,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func configurePopover() {
         popover.behavior = .transient
-        popover.animates = true
+        popover.animates = false
         popover.contentSize = NSSize(width: 376, height: 510)
         popover.contentViewController = NSHostingController(rootView: MenuBarPanel(model: model))
     }
@@ -124,8 +124,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             popover.performClose(nil)
             return
         }
+
+        let clickLocation = NSEvent.mouseLocation
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApplication.shared.activate(ignoringOtherApps: true)
+        positionPopover(near: clickLocation, fallbackScreen: button.window?.screen)
+
+        DispatchQueue.main.async { [weak self] in
+            self?.positionPopover(near: clickLocation, fallbackScreen: button.window?.screen)
+        }
+    }
+
+    private func positionPopover(near clickLocation: NSPoint, fallbackScreen: NSScreen?) {
+        guard let window = popover.contentViewController?.view.window,
+              let screen = NSScreen.screens.first(where: { $0.frame.contains(clickLocation) }) ?? fallbackScreen else {
+            return
+        }
+
+        // 多显示器或竖屏下 AppKit 偶尔会把弹窗放到屏幕中部，这里按本次点击所在屏幕重新贴近菜单栏。
+        let visibleFrame = screen.visibleFrame
+        let horizontalPadding: CGFloat = 8
+        let minimumX = visibleFrame.minX + horizontalPadding
+        let maximumX = visibleFrame.maxX - window.frame.width - horizontalPadding
+        let centeredX = clickLocation.x - window.frame.width / 2
+
+        var frame = window.frame
+        frame.origin.x = min(max(centeredX, minimumX), max(minimumX, maximumX))
+        frame.origin.y = visibleFrame.maxY - frame.height
+        window.setFrame(frame, display: true)
     }
 }
 
