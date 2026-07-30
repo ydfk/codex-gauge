@@ -1,0 +1,43 @@
+[package]
+name = "codex-gauge-native"
+version = "0.1.0"
+description = "Windows-native Codex usage monitor built with Rust, Slint and windows-rs"
+authors = ["Codex Gauge Contributors"]
+edition = "2021"
+rust-version = "1.85"
+build = "build.rs"
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+dirs = "6"
+minisign-verify = "0.2.5"
+raw-window-handle = "0.6"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+slint = { version = "1.17.1", default-features = false, features = ["backend-winit", "renderer-femtovg", "compat-1-2", "raw-window-handle-06", "system-tray"] }
+thiserror = "2"
+windows = { version = "0.61.3", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Dwm",
+  "Win32_Security",
+  "Win32_System_Registry",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+zip = { version = "6", default-features = false, features = ["deflate"] }
+
+[build-dependencies]
+slint-build = "1.17.1"
+winresource = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

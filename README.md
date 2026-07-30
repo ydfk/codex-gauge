@@ -25,6 +25,10 @@ Codex Gauge 是一个本机桌面监控工具，使用 Tauri v2、Svelte、TypeS
 > [!IMPORTANT]
 > Codex Gauge 只面向个人本机使用。它不会上传数据，不做远程代理，不保存 Token，也不会抓取 ChatGPT 网页。
 
+## Windows Native
+
+仓库同时提供隔离的 [Rust + Slint + windows-rs 原生 Windows 实现](native-windows/README.md)。它位于 `native-windows/`，不依赖 Tauri/WebView，不与现有客户端共享配置或发布产物；使用 `native-v*` 标签单独构建 Windows x64 和签名更新清单。
+
 ## Features
 
 - 深色 Liquid Glass 风格桌面浮窗
