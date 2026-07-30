@@ -45,6 +45,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 DerivedData/Build/Products/Debug/Codex Gauge.app
 ```
 
+## 本机安装
+
+只在自己的 Mac 上使用时，不需要制作 DMG、PKG，也不需要配置公开自动更新。推荐通过 Xcode 生成 Release 版，并将 `Codex Gauge.app` 固定安装到 `/Applications`。
+
+第一次配置 Xcode、导出 Release、覆盖更新和登录启动的完整步骤见 [使用 Xcode 在本机安装与更新](docs/LOCAL_XCODE_INSTALL.md)。
+
 ## 自动更新
 
 原生版使用 Sparkle appcast，不复用 Tauri 的 `latest.json`。两种更新清单可以作为同一个 GitHub Release 的独立资源并存：
@@ -88,4 +94,3 @@ native-macos/
 ├─ docs/                        # 原生版发布说明
 └─ scripts/                     # 构建与更新产物脚本
 ```
-
