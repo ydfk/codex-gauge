@@ -1,4 +1,5 @@
 use std::{
+    process::{Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard,
@@ -14,16 +15,19 @@ mod ui_bridge;
 mod update_flow;
 
 use callbacks::wire_callbacks;
-use ui_bridge::{set_logical_size, style_later, top_height, top_width, UiBridge};
+use ui_bridge::{
+    display_mode, set_logical_size, style_later, top_width, UiBridge, PANEL_HEIGHT, PANEL_WIDTH,
+    TOP_HEIGHT,
+};
 use update_flow::{start_update_check, start_update_install};
 
 use crate::{
     codex,
-    config::{AppConfig, ProviderPreference},
+    config::{AppConfig, ProviderPreference, TopBarDisplay},
     model::{CodexUsageSnapshot, SnapshotSource, SnapshotStatus},
     storage::{AppStorage, StateDocument},
     updater::UpdateInfo,
-    windows, AppTray, DetailWindow, SettingsWindow, TopWidget,
+    windows, AppTray, PanelPage, PanelWindow, TopWidget,
 };
 
 #[derive(Clone)]
@@ -43,13 +47,11 @@ pub fn run() -> Result<(), slint::PlatformError> {
     let state = storage.load_state();
 
     let top = TopWidget::new()?;
-    let detail = DetailWindow::new()?;
-    let settings = SettingsWindow::new()?;
+    let panel = PanelWindow::new()?;
     let tray = AppTray::new()?;
     let bridge = UiBridge {
         top: top.as_weak(),
-        detail: detail.as_weak(),
-        settings: settings.as_weak(),
+        panel: panel.as_weak(),
         tray: tray.as_weak(),
     };
     let backend = Backend {
@@ -68,20 +70,17 @@ pub fn run() -> Result<(), slint::PlatformError> {
             CodexUsageSnapshot::empty(SnapshotSource::AppServer, SnapshotStatus::RequestFailed)
         });
     bridge.apply_snapshot(&last_snapshot);
+    bridge.sync_config(&config);
     configure_initial_windows(&bridge, &config);
     wire_callbacks(&bridge, &backend);
-    bridge.sync_config(&config);
 
     tray.show()?;
-    style_later(detail.as_weak(), false, 440.0, 486.0);
-    style_later(settings.as_weak(), false, 620.0, 500.0);
+    style_later(panel.as_weak(), false, PANEL_WIDTH, PANEL_HEIGHT);
     if config.show_top_on_startup {
         bridge.show_top();
     }
-
     let position_timer = start_position_persistence(bridge.clone(), backend.clone());
     let oled_timer = start_oled_shift(bridge.clone(), backend.clone());
-    let top_hover_timer = start_top_hover(bridge.clone());
     start_refresh_loop(bridge.clone(), backend.clone());
     if config.update.check_on_startup {
         start_update_check(bridge.clone(), backend.clone());
@@ -91,15 +90,17 @@ pub fn run() -> Result<(), slint::PlatformError> {
     backend.exiting.store(true, Ordering::Release);
     drop(position_timer);
     drop(oled_timer);
-    drop(top_hover_timer);
     result
 }
 
 fn configure_initial_windows(bridge: &UiBridge, config: &AppConfig) {
     if let Some(top) = bridge.top.upgrade() {
-        let logical_width = top_width(top.get_data().five_visible);
-        set_logical_size(top.window(), logical_width, top_height(false));
-        let (physical_width, _) = windows::scaled_size(logical_width as i32, 40);
+        let logical_width = top_width(
+            display_mode(config.top_bar_display),
+            top.get_data().five_visible,
+        );
+        set_logical_size(top.window(), logical_width, TOP_HEIGHT);
+        let (physical_width, _) = windows::scaled_size(logical_width as i32, TOP_HEIGHT as i32);
         let default = windows::default_top_position(physical_width);
         let x = config
             .windows
@@ -111,21 +112,11 @@ fn configure_initial_windows(bridge: &UiBridge, config: &AppConfig) {
         top.set_locked(config.top_lock_position);
         top.set_panel_opacity(config.opacity);
     }
-    center_panel_windows(bridge);
-}
-
-fn center_panel_windows(bridge: &UiBridge) {
-    if let Some(detail) = bridge.detail.upgrade() {
-        set_logical_size(detail.window(), 440.0, 486.0);
-        let (width, height) = windows::scaled_size(440, 486);
+    if let Some(panel) = bridge.panel.upgrade() {
+        set_logical_size(panel.window(), PANEL_WIDTH, PANEL_HEIGHT);
+        let (width, height) = windows::scaled_size(PANEL_WIDTH as i32, PANEL_HEIGHT as i32);
         let (x, y) = windows::default_main_position(width, height);
-        windows::set_position(detail.window(), x, y);
-    }
-    if let Some(settings) = bridge.settings.upgrade() {
-        set_logical_size(settings.window(), 620.0, 500.0);
-        let (width, height) = windows::scaled_size(620, 500);
-        let (x, y) = windows::default_main_position(width, height);
-        windows::set_position(settings.window(), x, y);
+        windows::set_position(panel.window(), x, y);
     }
 }
 
@@ -229,28 +220,17 @@ fn start_oled_shift(bridge: UiBridge, backend: Backend) -> Timer {
     timer
 }
 
-fn start_top_hover(bridge: UiBridge) -> Timer {
-    let timer = Timer::default();
-    timer.start(TimerMode::Repeated, Duration::from_millis(100), move || {
-        if let Some(top) = bridge.top.upgrade() {
-            let expanded = top.window().is_visible() && windows::cursor_inside(top.window());
-            if top.get_expanded() != expanded {
-                top.set_expanded(expanded);
-                set_logical_size(
-                    top.window(),
-                    top_width(top.get_data().five_visible),
-                    top_height(expanded),
-                );
-            }
-        }
-    });
-    timer
-}
-
-fn save_settings(window: &SettingsWindow, bridge: &UiBridge, backend: &Backend) {
+fn save_settings(window: &PanelWindow, bridge: &UiBridge, backend: &Backend) {
     let mut config = lock(&backend.config);
+    let previous_start_on_boot = config.start_on_boot;
+    let previous_show_top = config.show_top_on_startup;
     config.start_on_boot = window.get_start_on_boot();
     config.show_top_on_startup = window.get_show_top();
+    config.top_bar_display = match window.get_display_mode().as_str() {
+        "five-and-seven" => TopBarDisplay::FiveAndSeven,
+        "icon-only" => TopBarDisplay::IconOnly,
+        _ => TopBarDisplay::FiveHour,
+    };
     config.top_always_on_top = window.get_top_pinned();
     config.top_lock_position = window.get_top_locked();
     config.oled_shift_enabled = window.get_oled_shift();
@@ -273,39 +253,46 @@ fn save_settings(window: &SettingsWindow, bridge: &UiBridge, backend: &Backend) 
     backend.storage.save_config(&saved);
     drop(config);
 
-    let _ = windows::set_autostart(saved.start_on_boot);
+    if previous_start_on_boot != saved.start_on_boot {
+        let _ = windows::set_autostart(saved.start_on_boot);
+    }
     bridge.sync_config(&saved);
-    set_top_visible(bridge, backend, saved.show_top_on_startup);
-    let _ = window.hide();
+    if previous_show_top != saved.show_top_on_startup {
+        set_top_visible(bridge, backend, saved.show_top_on_startup);
+    }
 }
 
 fn open_settings(bridge: &UiBridge, backend: &Backend) {
     let config = lock(&backend.config).clone();
-    let Some(settings) = bridge.settings.upgrade() else {
-        return;
-    };
-    settings.set_start_on_boot(windows::autostart_enabled());
-    settings.set_show_top(config.show_top_on_startup);
-    settings.set_top_pinned(config.top_always_on_top);
-    settings.set_top_locked(config.top_lock_position);
-    settings.set_oled_shift(config.oled_shift_enabled);
-    settings.set_panel_opacity(config.opacity * 100.0);
-    settings.set_refresh_seconds(config.refresh_interval_seconds.to_string().into());
-    settings.set_codex_command(config.codex_command.into());
-    settings.set_provider(
-        match config.preferred_provider {
-            ProviderPreference::AppServer => "app-server",
-            ProviderPreference::Api => "api",
+    bridge.sync_config(&config);
+    bridge.show_panel(PanelPage::Settings);
+}
+
+fn open_usage(bridge: &UiBridge) {
+    bridge.show_panel(PanelPage::Usage);
+}
+
+fn open_codex_login(bridge: UiBridge, backend: Backend) {
+    let command = lock(&backend.config).codex_command.clone();
+    thread::spawn(move || {
+        let mut process = Command::new(command);
+        process
+            .arg("login")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            process.creation_flags(0x0800_0000);
         }
-        .into(),
-    );
-    settings.set_update_on_start(config.update.check_on_startup);
-    settings.set_update_endpoint(config.update.endpoint.into());
-    settings.set_version_text(format!("v{}", env!("CARGO_PKG_VERSION")).into());
-    set_logical_size(settings.window(), 620.0, 500.0);
-    let _ = settings.show();
-    style_later(settings.as_weak(), false, 620.0, 500.0);
-    windows::bring_to_front(settings.window());
+        let message = if process.spawn().is_ok() {
+            "已打开 Codex 登录"
+        } else {
+            "无法打开 Codex 登录"
+        };
+        let _ = slint::invoke_from_event_loop(move || bridge.set_login_message(message));
+    });
 }
 
 fn set_top_visible(bridge: &UiBridge, backend: &Backend, visible: bool) {

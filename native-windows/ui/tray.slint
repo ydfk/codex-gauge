@@ -16,7 +16,7 @@ export component AppTray inherits SystemTrayIcon {
     callback update-action;
     callback quit-app;
 
-    icon: @image-url("../assets/tray.png");
+    icon: @image-url("../assets/tray-icon.svg");
     tooltip: root.status-tooltip;
     title: "Codex Gauge";
     clicked => { root.show-all(); }

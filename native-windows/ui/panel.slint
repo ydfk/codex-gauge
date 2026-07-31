@@ -1,0 +1,592 @@
+import { LineEdit, ScrollView } from "std-widgets.slint";
+import {
+    GaugeData, CreditDisplay, WindowSurface, Hairline, IconButton, ActionButton,
+    MeterBar, ToggleRow, FieldLabel, SectionTitle, GlassSlider
+} from "primitives.slint";
+
+export enum PanelPage {
+    usage,
+    settings,
+}
+
+component UsageCard inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    in property <string> remaining-text;
+    in property <string> used-text;
+    in property <string> reset-text;
+    in property <float> remaining;
+    in property <bool> unlimited: false;
+    in property <color> accent;
+
+    background: root.unlimited ? #163d3a70 : #ffffff07;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: root.unlimited ? #55cbb660 : #ffffff18;
+
+    Rectangle {
+        x: 0px;
+        y: 16px;
+        width: 2px;
+        height: parent.height - 32px;
+        border-radius: 1px;
+        background: root.accent;
+    }
+
+    Text {
+        x: 14px;
+        y: 11px;
+        width: 94px;
+        height: 19px;
+        text: root.title;
+        color: #e4e9ed;
+        font-family: "Microsoft YaHei UI";
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    Text {
+        x: 14px;
+        y: 31px;
+        width: 110px;
+        height: 17px;
+        text: root.subtitle;
+        color: #84929f;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+    Text {
+        x: parent.width - 122px;
+        y: 10px;
+        width: 108px;
+        height: 37px;
+        text: root.remaining-text;
+        color: root.accent;
+        font-family: root.unlimited ? "Microsoft YaHei UI" : "Segoe UI Variable Display";
+        font-size: 24px;
+        font-weight: 700;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    MeterBar {
+        x: 14px;
+        y: 56px;
+        width: parent.width - 28px;
+        value: root.remaining;
+        accent: root.accent;
+    }
+
+    Text {
+        x: 14px;
+        y: 70px;
+        width: 155px;
+        height: 20px;
+        text: root.used-text;
+        color: #a8b2bc;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        font-weight: 600;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    Text {
+        x: 169px;
+        y: 70px;
+        width: parent.width - 183px;
+        height: 20px;
+        text: root.unlimited ? root.reset-text : "重置 " + root.reset-text;
+        color: #8a97a3;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        font-weight: 600;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+component FactCell inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    background: transparent;
+
+    Text {
+        x: 4px;
+        y: 6px;
+        width: parent.width - 8px;
+        height: 17px;
+        text: root.label;
+        color: #83919e;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        font-weight: 600;
+        horizontal-alignment: center;
+    }
+
+    Text {
+        x: 4px;
+        y: 24px;
+        width: parent.width - 8px;
+        height: 21px;
+        text: root.value;
+        color: #edf2f5;
+        font-family: "Microsoft YaHei UI";
+        font-size: 11px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        overflow: elide;
+    }
+}
+
+component CreditRow inherits Rectangle {
+    in property <CreditDisplay> credit;
+
+    height: 40px;
+    background: #090d121f;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: #ffffff14;
+
+    Text {
+        x: 10px;
+        y: 5px;
+        width: parent.width - 72px;
+        height: 16px;
+        text: root.credit.title;
+        color: #e8edf1;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        font-weight: 700;
+        overflow: elide;
+    }
+
+    Text {
+        x: 10px;
+        y: 21px;
+        width: parent.width - 72px;
+        height: 14px;
+        text: root.credit.expiry;
+        color: #7f8d99;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        overflow: elide;
+    }
+
+    Text {
+        x: parent.width - 58px;
+        y: 0px;
+        width: 48px;
+        height: parent.height;
+        text: root.credit.status;
+        color: root.credit.available ? #76e5cf : #929da7;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        font-weight: 700;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+    }
+}
+
+component SegmentButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected: false;
+    callback clicked;
+
+    height: 28px;
+    border-radius: 7px;
+    border-width: root.selected ? 1px : 0px;
+    border-color: #76dfca69;
+    background: root.selected ? #245e575e : touch.has-hover ? #ffffff0e : transparent;
+
+    Text {
+        text: root.label;
+        color: root.selected ? #c9fff3 : #9aa6b1;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        font-weight: root.selected ? 700 : 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component PanelWindow inherits Window {
+    in property <GaugeData> data;
+    in-out property <PanelPage> page: PanelPage.usage;
+    in-out property <bool> start-on-boot;
+    in-out property <bool> show-top;
+    in-out property <bool> top-pinned;
+    in-out property <bool> top-locked;
+    in-out property <bool> oled-shift;
+    in-out property <float> panel-opacity;
+    in-out property <string> display-mode: "five-hour";
+    in-out property <string> refresh-seconds: "60";
+    in-out property <string> codex-command: "codex";
+    in-out property <string> provider: "app-server";
+    in-out property <bool> update-on-start;
+    in-out property <string> update-endpoint;
+    in property <string> version-text;
+    in property <string> update-status-text: "尚未检查更新";
+    in property <string> update-action-label: "安装更新";
+    in property <string> login-action-text: "未检测到有效登录状态   打开 Codex 登录";
+    callback close-window;
+    callback refresh;
+    callback open-login;
+    callback settings-changed;
+    callback check-update;
+    callback install-update;
+    callback quit-app;
+
+    width: 376px;
+    height: 510px;
+    no-frame: true;
+    background: transparent;
+    title: "Codex Gauge";
+
+    Path {
+        x: 182px;
+        y: 1px;
+        width: 14px;
+        height: 9px;
+        commands: "M 0 9 L 7 0 L 14 9 Z";
+        fill: #151a21fa;
+        stroke: #78849373;
+        stroke-width: 1px;
+    }
+
+    WindowSurface {
+        x: 0px;
+        y: 8px;
+        width: parent.width;
+        height: parent.height - 8px;
+        opacity: root.panel-opacity / 100;
+    }
+
+    Text {
+        x: 18px;
+        y: 17px;
+        width: parent.width - 78px;
+        height: 23px;
+        text: root.page == PanelPage.usage ? "Codex Gauge" : "设置";
+        color: #f0f4f7;
+        font-family: root.page == PanelPage.usage ? "Segoe UI Variable Display" : "Microsoft YaHei UI";
+        font-size: 15px;
+        font-weight: 700;
+        vertical-alignment: center;
+    }
+
+    Text {
+        x: 18px;
+        y: 40px;
+        width: parent.width - 78px;
+        height: 16px;
+        text: root.page == PanelPage.usage
+            ? root.data.status-text
+            : "Codex Gauge " + root.version-text;
+        color: #83919d;
+        font-family: "Microsoft YaHei UI";
+        font-size: 10px;
+        font-weight: 600;
+        overflow: elide;
+    }
+
+    IconButton {
+        x: parent.width - 46px;
+        y: 21px;
+        label: root.page == PanelPage.usage ? "↻" : "‹";
+        clicked => {
+            if root.page == PanelPage.usage {
+                root.refresh();
+            } else {
+                root.settings-changed();
+                root.page = PanelPage.usage;
+            }
+        }
+    }
+
+    Hairline { x: 14px; y: 67px; width: parent.width - 28px; }
+
+    if root.page == PanelPage.usage: ScrollView {
+        x: 0px;
+        y: 68px;
+        width: parent.width;
+        height: 394px;
+        viewport-width: self.width;
+        viewport-height: usage-content.height;
+        horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+
+        usage-content := Rectangle {
+            property <length> login-offset: root.data.login-needed ? 48px : 0px;
+            property <length> cards-y: 10px + self.login-offset;
+            property <length> facts-y: self.cards-y + 216px;
+            property <length> credits-y: self.facts-y + 66px;
+            width: 376px;
+            height: root.data.credit-items.length > 0
+                ? self.credits-y + 26px + root.data.credit-items.length * 44px + 10px
+                : self.facts-y + 58px + 10px;
+            background: transparent;
+
+            if root.data.login-needed: ActionButton {
+                x: 14px;
+                y: 8px;
+                width: parent.width - 28px;
+                height: 38px;
+                label: root.login-action-text;
+                primary: true;
+                clicked => { root.open-login(); }
+            }
+
+            UsageCard {
+                x: 14px;
+                y: usage-content.cards-y;
+                width: parent.width - 28px;
+                height: 104px;
+                title: "5 小时";
+                subtitle: "短周期额度";
+                remaining-text: root.data.five-remaining-text;
+                used-text: root.data.five-used-text;
+                reset-text: root.data.five-reset-text;
+                remaining: root.data.five-remaining;
+                unlimited: root.data.five-unlimited;
+                accent: root.data.five-unlimited ? #72e4ce
+                    : root.data.five-remaining >= 70 ? #72e4ce
+                    : root.data.five-remaining >= 30 ? #74b7ff
+                    : root.data.five-remaining >= 15 ? #efc66b
+                    : root.data.five-remaining >= 5 ? #ff9871
+                    : #ff7083;
+            }
+
+            UsageCard {
+                x: 14px;
+                y: usage-content.cards-y + 112px;
+                width: parent.width - 28px;
+                height: 104px;
+                title: "7 天";
+                subtitle: "长周期额度";
+                remaining-text: root.data.seven-remaining-text;
+                used-text: root.data.seven-used-text;
+                reset-text: root.data.seven-reset-text;
+                remaining: root.data.seven-remaining;
+                accent: root.data.seven-remaining >= 70 ? #72e4ce
+                    : root.data.seven-remaining >= 30 ? #74b7ff
+                    : root.data.seven-remaining >= 15 ? #efc66b
+                    : root.data.seven-remaining >= 5 ? #ff9871
+                    : #ff7083;
+            }
+
+            Rectangle {
+                x: 14px;
+                y: usage-content.facts-y;
+                width: parent.width - 28px;
+                height: 58px;
+                background: #0b101632;
+                border-radius: 13px;
+                border-width: 1px;
+                border-color: #ffffff16;
+
+                FactCell { x: 0px; width: parent.width / 3; height: parent.height; label: "可用重置"; value: root.data.reset-count-text; }
+                Rectangle { x: parent.width / 3; y: 11px; width: 1px; height: 36px; background: #ffffff18; }
+                FactCell { x: parent.width / 3; width: parent.width / 3; height: parent.height; label: "当前计划"; value: root.data.plan-text; }
+                Rectangle { x: parent.width * 2 / 3; y: 11px; width: 1px; height: 36px; background: #ffffff18; }
+                FactCell { x: parent.width * 2 / 3; width: parent.width / 3; height: parent.height; label: "数据来源"; value: root.data.source-text; }
+            }
+
+            if root.data.credit-items.length > 0: Text {
+                x: 16px;
+                y: usage-content.credits-y + 2px;
+                width: parent.width - 32px;
+                height: 18px;
+                text: "重置券明细 · " + root.data.credit-total-text;
+                color: #8997a3;
+                font-family: "Microsoft YaHei UI";
+                font-size: 10px;
+                font-weight: 700;
+            }
+
+            if root.data.credit-items.length > 0: VerticalLayout {
+                x: 14px;
+                y: usage-content.credits-y + 24px;
+                width: parent.width - 28px;
+                spacing: 4px;
+
+                for credit in root.data.credit-items: CreditRow {
+                    width: parent.width;
+                    credit: credit;
+                }
+            }
+        }
+    }
+
+    if root.page == PanelPage.usage: Rectangle {
+        x: 0px;
+        y: 462px;
+        width: parent.width;
+        height: 48px;
+        background: transparent;
+
+        Text {
+            x: 16px;
+            y: 0px;
+            width: 160px;
+            height: parent.height;
+            text: "更新于 " + root.data.updated-text;
+            color: #84919d;
+            font-family: "Microsoft YaHei UI";
+            font-size: 10px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+
+        ActionButton {
+            x: parent.width - 142px;
+            y: 9px;
+            width: 60px;
+            label: "设置";
+            clicked => { root.page = PanelPage.settings; }
+        }
+
+        ActionButton {
+            x: parent.width - 74px;
+            y: 9px;
+            width: 58px;
+            label: "退出";
+            danger: true;
+            clicked => { root.quit-app(); }
+        }
+    }
+
+    if root.page == PanelPage.settings: ScrollView {
+        x: 0px;
+        y: 68px;
+        width: parent.width;
+        height: parent.height - 76px;
+        viewport-width: self.width;
+        viewport-height: 822px;
+        horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+
+        Rectangle {
+            width: 376px;
+            height: 822px;
+            background: transparent;
+
+            SectionTitle { x: 16px; y: 12px; text: "顶部状态条"; }
+            Rectangle {
+                x: 14px; y: 34px; width: parent.width - 28px; height: 166px;
+                border-radius: 14px; border-width: 1px; border-color: #ffffff16; background: #ffffff06;
+
+                FieldLabel { x: 12px; y: 13px; text: "显示内容"; }
+                Rectangle {
+                    x: 12px; y: 31px; width: parent.width - 24px; height: 32px;
+                    border-radius: 9px; border-width: 1px; border-color: #ffffff18; background: #090d1226;
+                    SegmentButton {
+                        x: 2px; y: 2px; width: (parent.width - 4px) / 3; label: "图标 + 5h + 7d";
+                        selected: root.display-mode == "five-and-seven";
+                        clicked => { root.display-mode = "five-and-seven"; root.settings-changed(); }
+                    }
+                    SegmentButton {
+                        x: 2px + (parent.width - 4px) / 3; y: 2px; width: (parent.width - 4px) / 3; label: "图标 + 5h";
+                        selected: root.display-mode == "five-hour";
+                        clicked => { root.display-mode = "five-hour"; root.settings-changed(); }
+                    }
+                    SegmentButton {
+                        x: 2px + (parent.width - 4px) * 2 / 3; y: 2px; width: (parent.width - 4px) / 3; label: "仅图标";
+                        selected: root.display-mode == "icon-only";
+                        clicked => { root.display-mode = "icon-only"; root.settings-changed(); }
+                    }
+                }
+
+                FieldLabel { x: 12px; y: 75px; text: "刷新间隔"; }
+                Rectangle {
+                    x: 12px; y: 93px; width: parent.width - 24px; height: 32px;
+                    border-radius: 9px; border-width: 1px; border-color: #ffffff18; background: #090d1226;
+                    SegmentButton { x: 2px; y: 2px; width: (parent.width - 4px) / 5; label: "30 秒"; selected: root.refresh-seconds == "30"; clicked => { root.refresh-seconds = "30"; root.settings-changed(); } }
+                    SegmentButton { x: 2px + (parent.width - 4px) / 5; y: 2px; width: (parent.width - 4px) / 5; label: "1 分钟"; selected: root.refresh-seconds == "60"; clicked => { root.refresh-seconds = "60"; root.settings-changed(); } }
+                    SegmentButton { x: 2px + (parent.width - 4px) * 2 / 5; y: 2px; width: (parent.width - 4px) / 5; label: "2 分钟"; selected: root.refresh-seconds == "120"; clicked => { root.refresh-seconds = "120"; root.settings-changed(); } }
+                    SegmentButton { x: 2px + (parent.width - 4px) * 3 / 5; y: 2px; width: (parent.width - 4px) / 5; label: "5 分钟"; selected: root.refresh-seconds == "300"; clicked => { root.refresh-seconds = "300"; root.settings-changed(); } }
+                    SegmentButton { x: 2px + (parent.width - 4px) * 4 / 5; y: 2px; width: (parent.width - 4px) / 5; label: "10 分钟"; selected: root.refresh-seconds == "600"; clicked => { root.refresh-seconds = "600"; root.settings-changed(); } }
+                }
+
+                ToggleRow {
+                    x: 12px; y: 128px; width: parent.width - 24px;
+                    label: "开机启动"; checked <=> root.start-on-boot;
+                    changed(value) => { root.start-on-boot = value; root.settings-changed(); }
+                }
+            }
+
+            SectionTitle { x: 16px; y: 218px; text: "CODEX"; }
+            Rectangle {
+                x: 14px; y: 240px; width: parent.width - 28px; height: 126px;
+                border-radius: 14px; border-width: 1px; border-color: #ffffff16; background: #ffffff06;
+
+                FieldLabel { x: 12px; y: 12px; text: "命令路径"; }
+                LineEdit {
+                    x: 12px; y: 30px; width: parent.width - 24px; height: 32px;
+                    text <=> root.codex-command;
+                    font-family: "Segoe UI Variable Text";
+                    font-size: 11px;
+                    accepted => { root.settings-changed(); }
+                }
+                Hairline { x: 12px; y: 72px; width: parent.width - 24px; }
+                FieldLabel { x: 12px; y: 88px; text: "优先查询方式"; }
+                Rectangle {
+                    x: parent.width - 190px; y: 81px; width: 178px; height: 32px;
+                    border-radius: 9px; border-width: 1px; border-color: #ffffff18; background: #090d1226;
+                    SegmentButton { x: 2px; y: 2px; width: (parent.width - 4px) / 2; label: "App Server"; selected: root.provider == "app-server"; clicked => { root.provider = "app-server"; root.settings-changed(); } }
+                    SegmentButton { x: 2px + (parent.width - 4px) / 2; y: 2px; width: (parent.width - 4px) / 2; label: "AuthJson API"; selected: root.provider == "api"; clicked => { root.provider = "api"; root.settings-changed(); } }
+                }
+            }
+
+            SectionTitle { x: 16px; y: 384px; text: "WINDOWS"; }
+            Rectangle {
+                x: 14px; y: 406px; width: parent.width - 28px; height: 196px;
+                border-radius: 14px; border-width: 1px; border-color: #ffffff16; background: #ffffff06;
+
+                ToggleRow { x: 12px; y: 4px; width: parent.width - 24px; label: "启动时显示顶部状态条"; checked <=> root.show-top; changed(value) => { root.show-top = value; root.settings-changed(); } }
+                ToggleRow { x: 12px; y: 40px; width: parent.width - 24px; label: "顶部状态条始终置顶"; checked <=> root.top-pinned; changed(value) => { root.top-pinned = value; root.settings-changed(); } }
+                ToggleRow { x: 12px; y: 76px; width: parent.width - 24px; label: "锁定顶部状态条横向位置"; checked <=> root.top-locked; changed(value) => { root.top-locked = value; root.settings-changed(); } }
+                ToggleRow { x: 12px; y: 112px; width: parent.width - 24px; label: "防 OLED 烧屏微位移"; checked <=> root.oled-shift; changed(value) => { root.oled-shift = value; root.settings-changed(); } }
+                FieldLabel { x: 12px; y: 158px; text: "界面透明度"; }
+                GlassSlider { x: 112px; y: 151px; width: parent.width - 124px; minimum: 68; maximum: 100; value <=> root.panel-opacity; changed(value) => { root.panel-opacity = value; root.settings-changed(); } }
+            }
+
+            SectionTitle { x: 16px; y: 620px; text: "更新"; }
+            Rectangle {
+                x: 14px; y: 642px; width: parent.width - 28px; height: 164px;
+                border-radius: 14px; border-width: 1px; border-color: #ffffff16; background: #ffffff06;
+
+                ToggleRow { x: 12px; y: 2px; width: parent.width - 24px; label: "启动时检查更新"; checked <=> root.update-on-start; changed(value) => { root.update-on-start = value; root.settings-changed(); } }
+                FieldLabel { x: 12px; y: 46px; text: "更新地址"; }
+                LineEdit {
+                    x: 12px; y: 63px; width: parent.width - 24px; height: 32px;
+                    text <=> root.update-endpoint;
+                    font-family: "Segoe UI Variable Text";
+                    font-size: 10px;
+                    accepted => { root.settings-changed(); }
+                }
+                Text {
+                    x: 12px; y: 101px; width: parent.width - 24px; height: 22px;
+                    text: root.update-status-text;
+                    color: #93a0ab;
+                    font-family: "Microsoft YaHei UI";
+                    font-size: 10px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                ActionButton { x: 12px; y: 126px; width: 104px; label: "检查更新"; clicked => { root.check-update(); } }
+                ActionButton { x: 124px; y: 126px; width: 124px; label: root.update-action-label; primary: true; clicked => { root.install-update(); } }
+                ActionButton { x: parent.width - 84px; y: 126px; width: 72px; label: "退出"; danger: true; clicked => { root.quit-app(); } }
+            }
+        }
+    }
+}

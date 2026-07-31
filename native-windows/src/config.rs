@@ -7,6 +7,7 @@ pub struct AppConfig {
     pub version: u32,
     pub start_on_boot: bool,
     pub show_top_on_startup: bool,
+    pub top_bar_display: TopBarDisplay,
     pub top_always_on_top: bool,
     pub top_lock_position: bool,
     pub oled_shift_enabled: bool,
@@ -23,6 +24,14 @@ pub struct AppConfig {
 pub enum ProviderPreference {
     AppServer,
     Api,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TopBarDisplay {
+    FiveAndSeven,
+    FiveHour,
+    IconOnly,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,9 +51,10 @@ pub struct WindowPositions {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 3,
             start_on_boot: false,
             show_top_on_startup: true,
+            top_bar_display: TopBarDisplay::FiveHour,
             top_always_on_top: true,
             top_lock_position: false,
             oled_shift_enabled: false,
@@ -67,7 +77,7 @@ impl Default for AppConfig {
 
 impl AppConfig {
     pub fn normalize(&mut self) {
-        self.version = 2;
+        self.version = 3;
         self.refresh_interval_seconds = self.refresh_interval_seconds.clamp(30, 3600);
         self.opacity = self.opacity.clamp(0.68, 1.0);
         if self.codex_command.trim().is_empty() {
@@ -80,6 +90,46 @@ impl AppConfig {
             self.update.public_key = option_env!("CODEX_GAUGE_UPDATER_PUBKEY")
                 .unwrap_or_default()
                 .to_string();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_config_uses_compact_default_display_mode() {
+        let mut config: AppConfig = serde_json::from_str(
+            r#"{
+                "version": 2,
+                "refreshIntervalSeconds": 60,
+                "preferredProvider": "app-server",
+                "codexCommand": "codex",
+                "update": {
+                    "checkOnStartup": true,
+                    "endpoint": "https://example.com/latest.json",
+                    "publicKey": ""
+                },
+                "windows": {}
+            }"#,
+        )
+        .unwrap();
+
+        config.normalize();
+
+        assert_eq!(config.version, 3);
+        assert_eq!(config.top_bar_display, TopBarDisplay::FiveHour);
+    }
+
+    #[test]
+    fn serializes_all_top_bar_display_modes() {
+        for (mode, expected) in [
+            (TopBarDisplay::FiveAndSeven, "\"five-and-seven\""),
+            (TopBarDisplay::FiveHour, "\"five-hour\""),
+            (TopBarDisplay::IconOnly, "\"icon-only\""),
+        ] {
+            assert_eq!(serde_json::to_string(&mode).unwrap(), expected);
         }
     }
 }
