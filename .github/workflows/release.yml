@@ -20,14 +20,15 @@ jobs:
     runs-on: windows-latest
     env:
       CARGO_TERM_COLOR: always
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      NATIVE_WINDOWS_SIGNING_PRIVATE_KEY: ${{ secrets.NATIVE_WINDOWS_SIGNING_PRIVATE_KEY }}
+      NATIVE_WINDOWS_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.NATIVE_WINDOWS_SIGNING_PRIVATE_KEY_PASSWORD }}
+      CODEX_GAUGE_UPDATER_PUBKEY: ${{ vars.NATIVE_WINDOWS_UPDATER_PUBKEY || secrets.NATIVE_WINDOWS_UPDATER_PUBKEY }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Resolve release tag
+      - name: Resolve release metadata
         id: meta
         shell: pwsh
         run: |
@@ -38,17 +39,14 @@ jobs:
           if ($tag -notmatch '^v\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$') {
             throw "Release tag must be SemVer, for example v0.1.0"
           }
+          if ([string]::IsNullOrWhiteSpace($env:NATIVE_WINDOWS_SIGNING_PRIVATE_KEY)) {
+            throw "Repository secret NATIVE_WINDOWS_SIGNING_PRIVATE_KEY is required"
+          }
+          if ([string]::IsNullOrWhiteSpace($env:CODEX_GAUGE_UPDATER_PUBKEY)) {
+            throw "Repository variable or secret NATIVE_WINDOWS_UPDATER_PUBKEY is required"
+          }
           "tag=$tag" >> $env:GITHUB_OUTPUT
-          "version=$($tag.TrimStart('v'))" >> $env:GITHUB_OUTPUT
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.9.0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 26
-          cache: pnpm
+          "version=$($tag.Substring(1))" >> $env:GITHUB_OUTPUT
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -59,319 +57,69 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            src-tauri/target
-          key: ${{ runner.os }}-cargo-x64-${{ hashFiles('src-tauri/Cargo.lock') }}
+            native-windows/target
+            native-windows/tools/sign-update/target
+          key: ${{ runner.os }}-windows-x64-${{ hashFiles('native-windows/Cargo.lock', 'native-windows/tools/sign-update/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-x64-
+            ${{ runner.os }}-windows-x64-
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Prepare release config
-        shell: pwsh
-        env:
-          TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY || secrets.TAURI_UPDATER_PUBKEY }}
-        run: |
-          pnpm version:sync "${{ steps.meta.outputs.tag }}"
-
-          $configPath = "src-tauri/tauri.conf.json"
-          $config = Get-Content $configPath -Raw | ConvertFrom-Json
-          $config.plugins.updater.endpoints = @(
-            "https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
-          )
-
-          $hasUpdaterPubkey = -not [string]::IsNullOrWhiteSpace($env:TAURI_UPDATER_PUBKEY)
-          $hasSigningKey = -not [string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)
-          if ($hasUpdaterPubkey -and $hasSigningKey) {
-            $config.bundle.createUpdaterArtifacts = $true
-            $config.plugins.updater.pubkey = $env:TAURI_UPDATER_PUBKEY
-            "CODEX_GAUGE_UPDATER_ARTIFACTS=true" >> $env:GITHUB_ENV
-            Write-Host "Updater artifacts enabled."
-          } else {
-            $config.bundle.createUpdaterArtifacts = $false
-            "CODEX_GAUGE_UPDATER_ARTIFACTS=false" >> $env:GITHUB_ENV
-            if (-not $hasUpdaterPubkey) {
-              Write-Warning "TAURI_UPDATER_PUBKEY is empty; configure it as a repository variable or secret."
-            }
-            if (-not $hasSigningKey) {
-              Write-Warning "TAURI_SIGNING_PRIVATE_KEY is empty; configure it as a repository secret."
-            }
-            Write-Warning "Updater signing is not configured; release will skip latest.json and signature artifacts."
-          }
-
-          $config | ConvertTo-Json -Depth 20 | Set-Content $configPath -Encoding utf8
-
-      - name: Fast release check
-        run: pnpm release:check
-
-      - name: Build Windows x64 bundles
-        run: pnpm tauri build --target x86_64-pc-windows-msvc
-
-      - name: Normalize release asset names
+      - name: Set version
         shell: pwsh
         run: |
-          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
-          Get-ChildItem $bundlePath -Recurse -File | Where-Object { $_.Name -match '\s' } | ForEach-Object {
-            $normalizedName = $_.Name -replace '\s+', '.'
-            Rename-Item -LiteralPath $_.FullName -NewName $normalizedName
-            Write-Host "Normalized $($_.Name) -> $normalizedName"
-          }
+          $path = "native-windows/Cargo.toml"
+          $content = Get-Content $path -Raw
+          $replacement = '$1"' + '${{ steps.meta.outputs.version }}' + '"'
+          $content = $content -replace '(?m)^(version\s*=\s*)"[^"]+"', $replacement
+          Set-Content $path $content -Encoding utf8
 
-      - name: List bundle artifacts
+          $lockPath = "native-windows/Cargo.lock"
+          $lock = Get-Content $lockPath -Raw
+          $lockReplacement = '${1}' + '${{ steps.meta.outputs.version }}' + '"'
+          $lock = $lock -replace '(?ms)(\[\[package\]\]\r?\nname = "codex-gauge-native"\r?\nversion = ")[^"]+"', $lockReplacement
+          Set-Content $lockPath $lock -Encoding utf8
+
+      - name: Check and build native client
         shell: pwsh
         run: |
-          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
-          Get-ChildItem $bundlePath -Recurse -File | ForEach-Object {
-            $_.FullName.Replace((Resolve-Path ".").Path + "\", "")
-          }
+          cargo fmt --manifest-path native-windows/Cargo.toml --check
+          cargo test --manifest-path native-windows/Cargo.toml --release --locked
+          cargo build --manifest-path native-windows/Cargo.toml --release --locked --bin codex-gauge-native
 
-      - name: Generate updater manifest
-        if: env.CODEX_GAUGE_UPDATER_ARTIFACTS == 'true'
+      - name: Sign portable package and create manifest
         shell: pwsh
         run: |
-          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
-          $platforms = [ordered]@{}
-
-          function Add-PlatformAsset($target, $asset) {
-            if (-not $asset) {
-              return
-            }
-
-            $signaturePath = "$($asset.FullName).sig"
-            if (-not (Test-Path $signaturePath)) {
-              Write-Warning "Missing signature for $($asset.Name), skipping $target."
-              return
-            }
-
-            $assetName = [Uri]::EscapeDataString($asset.Name)
-            $platforms[$target] = [ordered]@{
-              signature = (Get-Content $signaturePath -Raw).Trim()
-              url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/$assetName"
-            }
+          $dist = New-Item -ItemType Directory -Force native-windows/dist
+          $assetName = "Codex.Gauge.Native_${{ steps.meta.outputs.version }}_x64.portable.exe"
+          $asset = Join-Path $dist.FullName $assetName
+          Copy-Item "native-windows/target/release/codex-gauge-native.exe" $asset
+          cargo run --manifest-path native-windows/tools/sign-update/Cargo.toml --release --locked -- $asset "$asset.sig"
+          if (-not (Test-Path "$asset.sig")) {
+            throw "Native updater signature was not generated"
           }
 
-          $nsis = Get-ChildItem "$bundlePath/nsis" -File -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          $msi = Get-ChildItem "$bundlePath/msi" -File -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
-          Add-PlatformAsset "windows-x86_64-nsis" $nsis
-          Add-PlatformAsset "windows-x86_64-msi" $msi
-          if ($nsis) {
-            Add-PlatformAsset "windows-x86_64" $nsis
-          } elseif ($msi) {
-            Add-PlatformAsset "windows-x86_64" $msi
-          }
-
-          if ($platforms.Count -eq 0) {
-            throw "Updater artifacts are enabled, but no signed Windows installer was generated."
-          }
-
+          $encodedName = [Uri]::EscapeDataString($assetName)
           $manifest = [ordered]@{
             version = "${{ steps.meta.outputs.version }}"
             notes = "Codex Gauge ${{ steps.meta.outputs.tag }}"
             pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-            platforms = $platforms
-          }
-          $manifest | ConvertTo-Json -Depth 10 | Set-Content "$bundlePath/latest.json" -Encoding utf8
-          Write-Host "Generated $bundlePath/latest.json."
-
-      - name: Verify updater artifacts
-        if: env.CODEX_GAUGE_UPDATER_ARTIFACTS == 'true'
-        shell: pwsh
-        run: |
-          $bundlePath = "src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
-          $latest = Get-ChildItem $bundlePath -Recurse -File -Filter "latest.json"
-          $sig = Get-ChildItem $bundlePath -Recurse -File -Filter "*.sig"
-          if (-not $latest) {
-            throw "Updater artifacts are enabled, but latest.json was not generated."
-          }
-          if (-not $sig) {
-            throw "Updater artifacts are enabled, but signature files were not generated."
-          }
-
-          $manifest = Get-Content ($latest | Select-Object -First 1).FullName -Raw | ConvertFrom-Json
-          foreach ($platform in $manifest.platforms.PSObject.Properties) {
-            $assetName = [Uri]::UnescapeDataString(([Uri]$platform.Value.url).Segments[-1])
-            $asset = Get-ChildItem $bundlePath -Recurse -File | Where-Object Name -eq $assetName | Select-Object -First 1
-            if (-not $asset) {
-              throw "Updater manifest references missing release asset: $assetName"
+            platforms = [ordered]@{
+              "windows-x86_64" = [ordered]@{
+                signature = (Get-Content "$asset.sig" -Raw).Trim()
+                url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/$encodedName"
+              }
             }
           }
+          $manifest | ConvertTo-Json -Depth 10 | Set-Content "$($dist.FullName)\latest.json" -Encoding utf8
 
-      - name: Create GitHub Release
+      - name: Publish Windows release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: Codex Gauge ${{ steps.meta.outputs.tag }}
           draft: false
-          prerelease: ${{ contains(steps.meta.outputs.tag, '-') }}
+          prerelease: ${{ contains(steps.meta.outputs.version, '-') }}
           generate_release_notes: true
           files: |
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/latest.json
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/*.zip
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/*.sig
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/latest.json
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.zip
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*.sig
-
-  macos-arm64:
-    name: macOS Apple Silicon
-    needs: windows-x64
-    runs-on: macos-14
-    env:
-      CARGO_TERM_COLOR: always
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Resolve release tag
-        id: meta
-        shell: bash
-        run: |
-          tag="${{ github.ref_name }}"
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            tag="${{ inputs.tag }}"
-          fi
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Release tag must be SemVer, for example v0.1.0" >&2
-            exit 1
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.9.0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 26
-          cache: pnpm
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: ${{ runner.os }}-cargo-arm64-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-arm64-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Detect Apple signing configuration
-        id: apple_signing
-        shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          signing=true
-          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD; do
-            [[ -n "${!name}" ]] || signing=false
-          done
-          echo "enabled=$signing" >> "$GITHUB_OUTPUT"
-          if [[ "$signing" != "true" ]]; then
-            echo "Apple signing secrets are incomplete; an unsigned macOS bundle will still be published."
-          fi
-
-          notarization=$signing
-          for name in APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
-            [[ -n "${!name}" ]] || notarization=false
-          done
-          echo "notarization=$notarization" >> "$GITHUB_OUTPUT"
-          if [[ "$notarization" != "true" ]]; then
-            echo "Apple notarization secrets are incomplete; notarization will be skipped."
-          fi
-
-      - name: Prepare release config
-        shell: bash
-        env:
-          TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY || secrets.TAURI_UPDATER_PUBKEY }}
-        run: |
-          pnpm version:sync "${{ steps.meta.outputs.tag }}"
-          node --input-type=module <<'NODE'
-          import { readFile, writeFile } from "node:fs/promises";
-          const path = "src-tauri/tauri.conf.json";
-          const config = JSON.parse(await readFile(path, "utf8"));
-          config.plugins.updater.endpoints = [
-            "https://github.com/${{ github.repository }}/releases/latest/download/latest.json",
-          ];
-          const enabled = Boolean(process.env.TAURI_UPDATER_PUBKEY && process.env.TAURI_SIGNING_PRIVATE_KEY);
-          config.bundle.createUpdaterArtifacts = enabled;
-          if (enabled) config.plugins.updater.pubkey = process.env.TAURI_UPDATER_PUBKEY;
-          await writeFile(path, `${JSON.stringify(config, null, 2)}\n`);
-          await writeFile(process.env.GITHUB_ENV, `CODEX_GAUGE_UPDATER_ARTIFACTS=${enabled}\n`, { flag: "a" });
-          NODE
-
-      - name: Build macOS arm64 bundles
-        shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          if [[ "${{ steps.apple_signing.outputs.enabled }}" != "true" ]]; then
-            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY
-          elif [[ -z "$APPLE_SIGNING_IDENTITY" ]]; then
-            unset APPLE_SIGNING_IDENTITY
-          fi
-
-          if [[ "${{ steps.apple_signing.outputs.notarization }}" != "true" ]]; then
-            unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
-          fi
-
-          pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg
-
-      - name: Normalize macOS release asset names
-        shell: bash
-        run: |
-          bundle_path="src-tauri/target/aarch64-apple-darwin/release/bundle"
-          find "$bundle_path" -type f -name '* *' -print0 | while IFS= read -r -d '' file; do
-            normalized="${file// /.}"
-            mv "$file" "$normalized"
-          done
-
-      - name: Merge macOS updater entry
-        if: env.CODEX_GAUGE_UPDATER_ARTIFACTS == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          bundle_path="src-tauri/target/aarch64-apple-darwin/release/bundle"
-          manifest="$bundle_path/latest.json"
-          gh release download "${{ steps.meta.outputs.tag }}" --pattern latest.json --dir "$bundle_path" --clobber
-          asset=$(find "$bundle_path" -type f -name '*.app.tar.gz' | head -n 1)
-          if [[ -z "$asset" || ! -f "$asset.sig" ]]; then
-            echo "Missing signed macOS updater archive." >&2
-            exit 1
-          fi
-          asset_name=$(basename "$asset")
-          encoded_name=$(node -p 'encodeURIComponent(process.argv[1])' "$asset_name")
-          url="https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/$encoded_name"
-          node scripts/merge-updater-manifest.mjs "$manifest" darwin-aarch64 "$asset.sig" "$url"
-
-      - name: Upload macOS assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          files: |
-            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
-            src-tauri/target/aarch64-apple-darwin/release/bundle/latest.json
+            native-windows/dist/*.portable.exe
+            native-windows/dist/*.sig
+            native-windows/dist/latest.json

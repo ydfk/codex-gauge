@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+const DEFAULT_UPDATE_ENDPOINT: &str =
+    "https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json";
+const LEGACY_UPDATE_ENDPOINT: &str = "https://github.com/ydfk/codex-gauge/releases/download/native-latest/latest-native-windows.json";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(default)]
@@ -64,8 +68,7 @@ impl Default for AppConfig {
             codex_command: "codex".to_string(),
             update: UpdateConfig {
                 check_on_startup: true,
-                endpoint: "https://github.com/ydfk/codex-gauge/releases/download/native-latest/latest-native-windows.json"
-                    .to_string(),
+                endpoint: DEFAULT_UPDATE_ENDPOINT.to_string(),
                 public_key: option_env!("CODEX_GAUGE_UPDATER_PUBKEY")
                     .unwrap_or_default()
                     .to_string(),
@@ -83,8 +86,9 @@ impl AppConfig {
         if self.codex_command.trim().is_empty() {
             self.codex_command = "codex".to_string();
         }
-        if self.update.endpoint.trim().is_empty() {
-            self.update.endpoint = AppConfig::default().update.endpoint;
+        if self.update.endpoint.trim().is_empty() || self.update.endpoint == LEGACY_UPDATE_ENDPOINT
+        {
+            self.update.endpoint = DEFAULT_UPDATE_ENDPOINT.to_string();
         }
         if self.update.public_key.trim().is_empty() {
             self.update.public_key = option_env!("CODEX_GAUGE_UPDATER_PUBKEY")
@@ -131,5 +135,15 @@ mod tests {
         ] {
             assert_eq!(serde_json::to_string(&mode).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn migrates_legacy_update_endpoint() {
+        let mut config = AppConfig::default();
+        config.update.endpoint = LEGACY_UPDATE_ENDPOINT.to_string();
+
+        config.normalize();
+
+        assert_eq!(config.update.endpoint, DEFAULT_UPDATE_ENDPOINT);
     }
 }

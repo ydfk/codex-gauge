@@ -1,8 +1,8 @@
 # 原生 macOS 发布
 
-## 为什么使用独立 appcast
+## 为什么使用 Sparkle appcast
 
-Tauri updater 的 `latest.json` 与 Sparkle 的 appcast 格式不兼容。原生版使用 `appcast.xml`，避免把更新安装、权限提升、原子替换和重启逻辑重新实现一遍。
+macOS 客户端使用 Sparkle 的 `appcast.xml`，由成熟的原生更新框架处理下载、权限提升、原子替换和重启。
 
 Sparkle 会校验更新包的 Ed25519 签名；正式分发仍应同时使用 Apple Developer ID 签名与公证。两者分别防止更新源被篡改和应用身份被替换。
 

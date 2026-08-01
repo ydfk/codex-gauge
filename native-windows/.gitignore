@@ -1,4 +1,5 @@
 /target/
 /dist/
+/tools/sign-update/target/
 *.pdb
 

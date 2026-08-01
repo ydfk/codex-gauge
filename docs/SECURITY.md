@@ -1,34 +1,36 @@
 # Security
 
-Codex Gauge 优先通过本机 Codex OAuth 登录状态查询 wham 用量接口，失败时回退本机 `codex app-server`。认证字段只在 Rust 后端内存中短暂使用，不保存、不传给前端、不写入日志。
+Codex Gauge 只在用户本机查询与展示 Codex 用量。Windows 和 macOS 客户端均优先使用本机 `codex app-server`，失败时才在后端内存中读取 Codex OAuth 登录状态并请求用量接口。
 
-## 不做的事情
+## 安全边界
 
-- 不保存完整 `auth.json` 内容
-- 不保存 `access_token`、`refresh_token`、OAuth Cookie 或 ChatGPT Cookie
-- 不把认证字段传给前端、状态文件或历史文件
+- 不保存完整 `auth.json`
+- 不保存 `access_token`、`refresh_token`、Cookie 或认证请求头
+- 不把认证字段传给 UI、配置文件或快照文件
+- 不记录 app-server 原始响应、账号邮箱或完整唯一 ID
 - 不抓取 ChatGPT 网页
-- 不上传账号、用量、配置或历史数据
-- 不记录 app-server 原始响应
+- 不上传账号、用量、配置、快照或日志
 - 不调用 `account/rateLimitResetCredit/consume`
 
-## 本地存储
+## 本地数据
 
-应用只写入平台数据目录下的 JSON 文件：Windows 为 `%APPDATA%\CodexGauge`，macOS 为 `~/Library/Application Support/CodexGauge`。
+Windows 使用 `%APPDATA%\CodexGaugeNative\`：
 
-- `config.json`：窗口、刷新间隔、显示偏好
-- `state.json`：脱敏后的最后快照和本地重置统计
-- `usage-history.json`：最多 90 天的本地聚合快照
+- `config.json`：刷新、窗口、数据源与更新偏好
+- `state.json`：脱敏后的最后快照和刷新状态
+- `update.log`：只包含时间、操作、结果与泛化错误类别
 
-字段缺失、接口不可用、Codex CLI 不存在或用户未登录时，应用应显示“未知”或对应状态，不应崩溃。
+macOS 使用 `~/Library/Application Support/Codex Gauge Native/`：
 
-## 日志原则
+- `config.json`：菜单栏、刷新、数据源与更新偏好
+- `snapshot.json`：脱敏后的最后成功快照
 
-日志只能记录错误类别和脱敏状态，不得包含：
+字段缺失、接口不支持、Codex 命令不存在或用户未登录时，客户端应显示未知或对应状态，不应崩溃，也不应把底层响应带入错误信息。
 
-- app-server 原始响应
-- 邮箱明文
-- Token
-- Cookie
-- OAuth 凭据
-- Authorization 请求头
+## 日志要求
+
+日志不得包含 Token、Cookie、OAuth 凭据、Authorization 请求头、认证文件原文或服务端原始响应。更新与请求错误只记录 `network`、`invalid_auth`、`manifest`、`signature_invalid` 等稳定类别。
+
+## 报告问题
+
+提交安全问题时请只提供复现步骤、版本、平台和脱敏错误类别。不要在 Issue、截图或附件中上传认证文件和任何凭据。

@@ -1,8 +1,3 @@
-node_modules/
-dist/
-src-tauri/target/
-src-tauri/gen/
-
 .env
 .env.*
 *.log
@@ -14,5 +9,3 @@ plan.md
 .vscode/
 .idea/
 .history/
-updater.key
-updater.key.pub

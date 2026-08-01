@@ -1,88 +1,54 @@
 # Release
 
-## 版本
+Windows 与 macOS 使用独立的原生构建和更新链路。版本遵循 SemVer，两套更新清单不可互换。
 
-版本使用 SemVer：
+## Windows x64
 
-- `0.1.0`：第一个可用版本
-- `0.2.0`：Token 统计增强
-- `0.3.0`：自动升级完善
-- `1.0.0`：稳定版
+本地检查与构建：
 
-## Windows 构建
-
-```bash
-pnpm install
-pnpm build
-pnpm tauri:build
+```powershell
+.\native-windows\scripts\check.ps1
+.\native-windows\scripts\build.ps1
 ```
 
-产物位于 `src-tauri/target/release/bundle`。
+推送 `v*.*.*` 标签会触发 `.github/workflows/release.yml`：
 
-## macOS Apple Silicon 构建
-
-```bash
-pnpm install
-pnpm build
-pnpm tauri build --target aarch64-apple-darwin --bundles app,dmg
+```powershell
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
-macOS 最低版本为 12.0，不发布 Intel 或 Universal 安装包。CI 没有 Apple 凭证时仍会生成未签名 `.dmg`；正式分发建议配置 Developer ID Application 签名和 Apple notarization。
+GitHub 仓库需要配置：
 
-## GitHub Actions 发布
+| 类型 | 名称 | 用途 |
+| --- | --- | --- |
+| Secret | `NATIVE_WINDOWS_SIGNING_PRIVATE_KEY` | 完整 Minisign 私钥内容 |
+| Secret | `NATIVE_WINDOWS_SIGNING_PRIVATE_KEY_PASSWORD` | 私钥密码；无密码时可留空 |
+| Variable 或 Secret | `NATIVE_WINDOWS_UPDATER_PUBKEY` | 编译进客户端的 Minisign 公钥 |
 
-推送 SemVer tag 后会触发 `.github/workflows/release.yml`：
+工作流构建 Windows x64 便携 EXE，使用仓库内的纯 Rust 签名工具生成 `.sig`，并发布：
 
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-CI 依次生成 Windows x64 和 macOS arm64 产物，并上传到同一个 GitHub Release。
-
-以下 Repository secrets 用于 macOS 签名和公证，不影响未签名 `.dmg` 的自动构建：
-
-- `APPLE_CERTIFICATE`：base64 编码的 `.p12` 证书
-- `APPLE_CERTIFICATE_PASSWORD`
-- `APPLE_SIGNING_IDENTITY`：可选，未设置时由 Tauri 从证书推断
-- `APPLE_ID`
-- `APPLE_PASSWORD`：Apple ID app-specific password
-- `APPLE_TEAM_ID`
-
-## Updater
-
-应用通过 GitHub Release 的 `latest.json` 检测最新版本。只生成安装包时不需要 updater 配置；需要应用内更新时，需要在 GitHub 仓库配置：
-
-- Repository variable: `TAURI_UPDATER_PUBKEY`
-- Repository secret: `TAURI_SIGNING_PRIVATE_KEY`
-- Repository secret: `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，如果私钥有密码
-
-`TAURI_UPDATER_PUBKEY` 推荐放在 Repository variables。若放在 Repository secrets，当前 CI 也会读取同名 secret 作为兜底。
-
-应用内设置页可以修改更新地址。默认地址是：
-
-```text
-https://github.com/ydfk/codex-gauge/releases/latest/download/latest.json
-```
-
-正式发布前需要：
-
-1. 生成 Tauri updater 签名密钥。
-2. 将 public key 写入 `plugins.updater.pubkey`。
-3. 将 endpoint 改为真实 GitHub Releases `latest.json` 地址，或使用 CI 自动替换为当前仓库。
-4. 在 CI 中将 `bundle.createUpdaterArtifacts` 改为 `true`。
-5. 在 CI 中设置 `TAURI_SIGNING_PRIVATE_KEY`。
-6. 使用 CI 上传安装包、签名和 `latest.json`。
-
-不要把私钥提交到仓库。
-
-本地默认 `createUpdaterArtifacts = false`，用于避免没有签名私钥时普通构建失败。CI 缺少 `TAURI_UPDATER_PUBKEY` 或 `TAURI_SIGNING_PRIVATE_KEY` 时会跳过 `latest.json` 和签名更新包，但仍发布 Windows x64 安装包和 macOS arm64 `.dmg`。
-
-当 updater 签名配置完整时，CI 会根据 Tauri 生成的 Windows 安装包和 `.sig` 写入 `latest.json`，然后校验并上传：
-
+- `Codex.Gauge.Native_<version>_x64.portable.exe`
+- 对应 `.sig`
 - `latest.json`
-- Windows `.msi` / `.exe` 安装包
-- macOS arm64 `.dmg` 和 `.app.tar.gz`
-- `.sig` 签名文件
 
-如果这些文件没有生成，发布流程会失败，避免 GitHub Release 缺少应用内更新所需文件。
+GitHub 最新正式 Release 保存更新清单。客户端通过 `releases/latest/download/latest.json` 检查更新，并只安装签名验证通过的 `windows-x86_64` 资产。
+
+## macOS
+
+macOS 使用 Sparkle appcast。首次发布前需要：
+
+1. 在 `native-macos` 中解析 Sparkle 依赖。
+2. 使用 Sparkle `generate_keys` 生成 Ed25519 密钥。
+3. 从 `Config/Local.xcconfig.example` 创建未提交的 `Config/Local.xcconfig` 并写入公钥。
+4. 配置 Developer ID Application 签名与 Apple 公证凭据。
+5. 执行 `native-macos/scripts/release.sh`。
+
+脚本生成签名 zip 与 `appcast.xml`，产物位于 `native-macos/build/update/`。详细步骤见 [macOS 发布说明](../native-macos/docs/RELEASE.md)。
+
+## 发布验收
+
+- Windows：从旧版本执行检查、下载、签名校验、替换和重启
+- macOS：验证 `codesign`、`spctl`、公证状态，并从旧版本完成 Sparkle 更新
+- Release 不包含私钥、认证文件、Token、Cookie、配置或本地日志
+- 清单中的版本、平台和下载 URL 与实际资产一致

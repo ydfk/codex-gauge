@@ -1,6 +1,6 @@
 # Codex Gauge Native
 
-Codex Gauge 的独立原生 macOS 实现。现有 `src/` 与 `src-tauri/` 不参与编译，两个实现可以并行演进。
+Codex Gauge 的原生 macOS 菜单栏客户端，使用 SwiftUI、AppKit 和 Sparkle 2。
 
 ## 功能
 
@@ -53,12 +53,7 @@ DerivedData/Build/Products/Debug/Codex Gauge.app
 
 ## 自动更新
 
-原生版使用 Sparkle appcast，不复用 Tauri 的 `latest.json`。两种更新清单可以作为同一个 GitHub Release 的独立资源并存：
-
-```text
-latest.json   # Tauri 版本
-appcast.xml   # Swift 原生版本
-```
+macOS 客户端使用独立的 Sparkle `appcast.xml`，不与 Windows 的更新清单混用。
 
 首次配置：
 
@@ -68,7 +63,7 @@ appcast.xml   # Swift 原生版本
 4. 私钥保留在 macOS 钥匙串或 CI Secret，不提交到仓库。
 5. 使用 Developer ID 对 `.app` 签名并公证。
 6. 运行 `./scripts/release.sh`，生成更新压缩包和 `appcast.xml`。
-7. 将两者上传到 GitHub Release。
+7. 将 zip 和 `appcast.xml` 上传到 GitHub Release。
 
 完整发布边界见 [docs/RELEASE.md](docs/RELEASE.md)。
 
