@@ -50,7 +50,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 
 ## 自动更新
 
-Windows 使用 `latest.json` 与 Minisign 签名，`v*.*.*` 标签触发 x64 发布。macOS 使用 Sparkle `appcast.xml`、Ed25519 签名以及 Apple Developer ID 签名/公证。两套更新资产互不混用，完整配置见 [发布说明](docs/RELEASE.md)。
+`v*.*.*` 标签当前构建 Windows x64。未配置签名时仍发布便携 EXE；配置 Minisign 后会额外生成 `latest.json` 和签名资产。发布流程按平台 artifact 汇总设计，后续可以把 macOS 的 Sparkle zip 与 `appcast.xml` 加入同一个版本 Release。完整配置见 [发布说明](docs/RELEASE.md)。
 
 ## 安全
 

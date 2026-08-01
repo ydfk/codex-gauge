@@ -31,15 +31,20 @@ fn run() -> Result<(), &'static str> {
 
     let encoded_key = env::var("NATIVE_WINDOWS_SIGNING_PRIVATE_KEY")
         .map_err(|_| "signing key is not configured")?;
-    let password = env::var("NATIVE_WINDOWS_SIGNING_PRIVATE_KEY_PASSWORD")
-        .ok()
-        .filter(|value| !value.is_empty());
-
     // 私钥只在当前进程内解密，不写入磁盘或输出到日志。
     let key_box = SecretKeyBox::from_string(&encoded_key).map_err(|_| "invalid signing key")?;
-    let key = key_box
-        .into_secret_key(password)
-        .map_err(|_| "unable to unlock signing key")?;
+    let key = match key_box.clone().into_unencrypted_secret_key() {
+        Ok(key) => key,
+        Err(_) => {
+            let password = env::var("NATIVE_WINDOWS_SIGNING_PRIVATE_KEY_PASSWORD")
+                .ok()
+                .filter(|value| !value.is_empty())
+                .unwrap_or_default();
+            key_box
+                .into_secret_key(Some(password))
+                .map_err(|_| "unable to unlock signing key")?
+        }
+    };
     let file = File::open(input).map_err(|_| "unable to read update package")?;
     let signature = minisign::sign(None, &key, BufReader::new(file), None, None)
         .map_err(|_| "unable to sign update package")?;

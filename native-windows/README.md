@@ -41,13 +41,13 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-仓库需要配置：
+应用内更新需要配置：
 
 - Secret `NATIVE_WINDOWS_SIGNING_PRIVATE_KEY`
 - Secret `NATIVE_WINDOWS_SIGNING_PRIVATE_KEY_PASSWORD`，无密码时可留空
 - Variable 或 Secret `NATIVE_WINDOWS_UPDATER_PUBKEY`
 
-CI 使用 `tools/sign-update` 中的 Rust 工具生成标准 Minisign 签名，不需要 Node.js。最新正式 Release 同时保存程序、签名和 `latest.json`。
+这些配置不是构建和发布 EXE 的前置条件。未配置时，CI 仍发布便携 EXE，只跳过签名和 `latest.json`；配置完整时，`tools/sign-update` 生成标准 Minisign 签名，最新正式 Release 同时保存程序、签名和更新清单。
 
 ## 边界
 

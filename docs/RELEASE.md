@@ -18,7 +18,7 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-GitHub 仓库需要配置：
+应用内更新签名为可选配置：
 
 | 类型 | 名称 | 用途 |
 | --- | --- | --- |
@@ -26,13 +26,41 @@ GitHub 仓库需要配置：
 | Secret | `NATIVE_WINDOWS_SIGNING_PRIVATE_KEY_PASSWORD` | 私钥密码；无密码时可留空 |
 | Variable 或 Secret | `NATIVE_WINDOWS_UPDATER_PUBKEY` | 编译进客户端的 Minisign 公钥 |
 
-工作流构建 Windows x64 便携 EXE，使用仓库内的纯 Rust 签名工具生成 `.sig`，并发布：
+可使用仓库内工具生成无密码密钥对：
+
+```powershell
+$keyDir = Join-Path $env:USERPROFILE ".codex-gauge\signing"
+New-Item -ItemType Directory -Force $keyDir | Out-Null
+cargo run --manifest-path native-windows/tools/sign-update/Cargo.toml `
+  --example generate-key --release --locked -- `
+  "$keyDir\windows-updater.key" "$keyDir\windows-updater.pub"
+```
+
+无密码密钥只需配置一个 Secret 和一个 Repository Variable：
+
+```powershell
+Get-Content "$keyDir\windows-updater.key" -Raw |
+  gh secret set NATIVE_WINDOWS_SIGNING_PRIVATE_KEY
+
+$publicKey = Get-Content "$keyDir\windows-updater.pub" |
+  Where-Object { $_ -and $_ -notmatch '^untrusted comment:' } |
+  Select-Object -First 1
+gh variable set NATIVE_WINDOWS_UPDATER_PUBKEY --body $publicKey
+```
+
+`NATIVE_WINDOWS_SIGNING_PRIVATE_KEY_PASSWORD` 无需创建。私钥不得提交到仓库，并应离线备份；丢失私钥后，已安装客户端无法验证使用新密钥签发的更新。
+
+未配置签名时，工作流仍会构建并发布 Windows x64 便携 EXE，但不会生成 `.sig` 和 `latest.json`，应用内更新暂不可用。
+
+配置完整时，工作流使用仓库内的纯 Rust 签名工具并发布：
 
 - `Codex.Gauge.Native_<version>_x64.portable.exe`
 - 对应 `.sig`
 - `latest.json`
 
 GitHub 最新正式 Release 保存更新清单。客户端通过 `releases/latest/download/latest.json` 检查更新，并只安装签名验证通过的 `windows-x86_64` 资产。
+
+构建 job 与 Release job 已分离。后续增加 macOS 自动发布时，只需新增 macOS 构建 job、上传独立 artifact，并让统一 Release job 同时依赖该 job；Windows 与 macOS 产物可以进入同一个版本 Release。
 
 ## macOS
 

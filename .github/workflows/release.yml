@@ -15,8 +15,31 @@ permissions:
   contents: write
 
 jobs:
+  metadata:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          tag="${{ github.ref_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            tag="${{ inputs.tag }}"
+          fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag must be SemVer, for example v0.1.0" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
   windows-x64:
     name: Windows x64
+    needs: metadata
     runs-on: windows-latest
     env:
       CARGO_TERM_COLOR: always
@@ -28,25 +51,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve release metadata
-        id: meta
+      - name: Detect optional updater signing
+        id: signing
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            $tag = "${{ inputs.tag }}"
+          $hasPrivateKey = -not [string]::IsNullOrWhiteSpace($env:NATIVE_WINDOWS_SIGNING_PRIVATE_KEY)
+          $hasPublicKey = -not [string]::IsNullOrWhiteSpace($env:CODEX_GAUGE_UPDATER_PUBKEY)
+          $enabled = $hasPrivateKey -and $hasPublicKey
+          "enabled=$($enabled.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          if (-not $enabled) {
+            Write-Warning "Updater signing is not fully configured. The portable EXE will still be released without latest.json or signature artifacts."
           }
-          if ($tag -notmatch '^v\d+\.\d+\.\d+([+-][0-9A-Za-z.-]+)?$') {
-            throw "Release tag must be SemVer, for example v0.1.0"
-          }
-          if ([string]::IsNullOrWhiteSpace($env:NATIVE_WINDOWS_SIGNING_PRIVATE_KEY)) {
-            throw "Repository secret NATIVE_WINDOWS_SIGNING_PRIVATE_KEY is required"
-          }
-          if ([string]::IsNullOrWhiteSpace($env:CODEX_GAUGE_UPDATER_PUBKEY)) {
-            throw "Repository variable or secret NATIVE_WINDOWS_UPDATER_PUBKEY is required"
-          }
-          "tag=$tag" >> $env:GITHUB_OUTPUT
-          "version=$($tag.Substring(1))" >> $env:GITHUB_OUTPUT
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -68,13 +83,13 @@ jobs:
         run: |
           $path = "native-windows/Cargo.toml"
           $content = Get-Content $path -Raw
-          $replacement = '$1"' + '${{ steps.meta.outputs.version }}' + '"'
+          $replacement = '$1"' + '${{ needs.metadata.outputs.version }}' + '"'
           $content = $content -replace '(?m)^(version\s*=\s*)"[^"]+"', $replacement
           Set-Content $path $content -Encoding utf8
 
           $lockPath = "native-windows/Cargo.lock"
           $lock = Get-Content $lockPath -Raw
-          $lockReplacement = '${1}' + '${{ steps.meta.outputs.version }}' + '"'
+          $lockReplacement = '${1}' + '${{ needs.metadata.outputs.version }}' + '"'
           $lock = $lock -replace '(?ms)(\[\[package\]\]\r?\nname = "codex-gauge-native"\r?\nversion = ")[^"]+"', $lockReplacement
           Set-Content $lockPath $lock -Encoding utf8
 
@@ -85,13 +100,21 @@ jobs:
           cargo test --manifest-path native-windows/Cargo.toml --release --locked
           cargo build --manifest-path native-windows/Cargo.toml --release --locked --bin codex-gauge-native
 
-      - name: Sign portable package and create manifest
+      - name: Prepare portable package
         shell: pwsh
         run: |
           $dist = New-Item -ItemType Directory -Force native-windows/dist
-          $assetName = "Codex.Gauge.Native_${{ steps.meta.outputs.version }}_x64.portable.exe"
+          $assetName = "Codex.Gauge.Native_${{ needs.metadata.outputs.version }}_x64.portable.exe"
           $asset = Join-Path $dist.FullName $assetName
           Copy-Item "native-windows/target/release/codex-gauge-native.exe" $asset
+
+      - name: Sign portable package and create manifest
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          $dist = Get-Item native-windows/dist
+          $assetName = "Codex.Gauge.Native_${{ needs.metadata.outputs.version }}_x64.portable.exe"
+          $asset = Join-Path $dist.FullName $assetName
           cargo run --manifest-path native-windows/tools/sign-update/Cargo.toml --release --locked -- $asset "$asset.sig"
           if (-not (Test-Path "$asset.sig")) {
             throw "Native updater signature was not generated"
@@ -99,27 +122,47 @@ jobs:
 
           $encodedName = [Uri]::EscapeDataString($assetName)
           $manifest = [ordered]@{
-            version = "${{ steps.meta.outputs.version }}"
-            notes = "Codex Gauge ${{ steps.meta.outputs.tag }}"
+            version = "${{ needs.metadata.outputs.version }}"
+            notes = "Codex Gauge ${{ needs.metadata.outputs.tag }}"
             pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
             platforms = [ordered]@{
               "windows-x86_64" = [ordered]@{
                 signature = (Get-Content "$asset.sig" -Raw).Trim()
-                url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/$encodedName"
+                url = "https://github.com/${{ github.repository }}/releases/download/${{ needs.metadata.outputs.tag }}/$encodedName"
               }
             }
           }
           $manifest | ConvertTo-Json -Depth 10 | Set-Content "$($dist.FullName)\latest.json" -Encoding utf8
 
-      - name: Publish Windows release
-        uses: softprops/action-gh-release@v2
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v7
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: Codex Gauge ${{ steps.meta.outputs.tag }}
-          draft: false
-          prerelease: ${{ contains(steps.meta.outputs.version, '-') }}
-          generate_release_notes: true
-          files: |
+          name: windows-x64
+          path: |
             native-windows/dist/*.portable.exe
             native-windows/dist/*.sig
             native-windows/dist/latest.json
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs:
+      - metadata
+      - windows-x64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.metadata.outputs.tag }}
+          name: Codex Gauge ${{ needs.metadata.outputs.tag }}
+          draft: false
+          prerelease: ${{ contains(needs.metadata.outputs.version, '-') }}
+          generate_release_notes: true
+          files: release-assets/**
