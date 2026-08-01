@@ -70,9 +70,9 @@ export component TopWidget inherits Window {
 
     TopSurface {
         x: 0px;
-        y: -4px;
+        y: 0px;
         width: parent.width;
-        height: parent.height + 4px;
+        height: parent.height;
         surface-opacity: root.panel-opacity;
     }
 
@@ -111,16 +111,18 @@ export component TopWidget inherits Window {
         remaining: root.data.seven-remaining;
     }
 
-    ContextMenuArea {
+    menu-area := ContextMenuArea {
         width: parent.width;
         height: parent.height;
 
         drag := TouchArea {
             width: parent.width;
             height: parent.height;
-            mouse-cursor: root.locked ? default : ew-resize;
+            mouse-cursor: root.locked ? default : drag.pressed || root.dragging ? grabbing : grab;
             pointer-event(event) => {
-                if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                    menu-area.show({ x: drag.mouse-x, y: drag.mouse-y });
+                } else if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
                     root.press-x = drag.mouse-x;
                     root.left-pressed = true;
                     root.dragging = false;

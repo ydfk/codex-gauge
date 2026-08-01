@@ -238,6 +238,7 @@ export component PanelWindow inherits Window {
     in property <string> version-text;
     in property <string> update-status-text: "尚未检查更新";
     in property <string> update-action-label: "安装更新";
+    in property <bool> update-available: false;
     in property <string> login-action-text: "未检测到有效登录状态   打开 Codex 登录";
     callback close-window;
     callback refresh;
@@ -275,7 +276,7 @@ export component PanelWindow inherits Window {
     Text {
         x: 18px;
         y: 17px;
-        width: parent.width - 78px;
+        width: root.page == PanelPage.usage ? parent.width - 112px : parent.width - 78px;
         height: 23px;
         text: root.page == PanelPage.usage ? "Codex Gauge" : "设置";
         color: #f0f4f7;
@@ -288,7 +289,7 @@ export component PanelWindow inherits Window {
     Text {
         x: 18px;
         y: 40px;
-        width: parent.width - 78px;
+        width: root.page == PanelPage.usage ? parent.width - 112px : parent.width - 78px;
         height: 16px;
         text: root.page == PanelPage.usage
             ? root.data.status-text
@@ -300,13 +301,20 @@ export component PanelWindow inherits Window {
         overflow: elide;
     }
 
+    if root.page == PanelPage.usage: IconButton {
+        x: parent.width - 80px;
+        y: 21px;
+        label: "↻";
+        clicked => { root.refresh(); }
+    }
+
     IconButton {
         x: parent.width - 46px;
         y: 21px;
-        label: root.page == PanelPage.usage ? "↻" : "‹";
+        label: root.page == PanelPage.usage ? "×" : "‹";
         clicked => {
             if root.page == PanelPage.usage {
-                root.refresh();
+                root.close-window();
             } else {
                 root.settings-changed();
                 root.page = PanelPage.usage;
@@ -328,7 +336,7 @@ export component PanelWindow inherits Window {
         usage-content := Rectangle {
             property <length> login-offset: root.data.login-needed ? 48px : 0px;
             property <length> cards-y: 10px + self.login-offset;
-            property <length> facts-y: self.cards-y + 216px;
+            property <length> facts-y: self.cards-y + 228px;
             property <length> credits-y: self.facts-y + 66px;
             width: 376px;
             height: root.data.credit-items.length > 0
@@ -583,8 +591,8 @@ export component PanelWindow inherits Window {
                     vertical-alignment: center;
                     overflow: elide;
                 }
-                ActionButton { x: 12px; y: 126px; width: 104px; label: "检查更新"; clicked => { root.check-update(); } }
-                ActionButton { x: 124px; y: 126px; width: 124px; label: root.update-action-label; primary: true; clicked => { root.install-update(); } }
+                ActionButton { x: 12px; y: 126px; width: root.update-available ? 104px : 236px; label: "检查更新"; clicked => { root.check-update(); } }
+                if root.update-available: ActionButton { x: 124px; y: 126px; width: 124px; label: root.update-action-label; primary: true; clicked => { root.install-update(); } }
                 ActionButton { x: parent.width - 84px; y: 126px; width: 72px; label: "退出"; danger: true; clicked => { root.quit-app(); } }
             }
         }

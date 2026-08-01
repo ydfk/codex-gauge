@@ -164,6 +164,7 @@ impl UiBridge {
         self.set_update_message(message);
         if let Some(panel) = self.panel.upgrade() {
             panel.set_update_action_label(label.into());
+            panel.set_update_available(available);
         }
         if let Some(tray) = self.tray.upgrade() {
             tray.set_update_label(label.into());

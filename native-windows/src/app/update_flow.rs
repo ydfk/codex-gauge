@@ -5,7 +5,7 @@ use crate::updater;
 use super::{lock, quit, Backend, UiBridge};
 
 pub(super) fn start_update_check(bridge: UiBridge, backend: Backend) {
-    bridge.set_update_message("正在检查更新…");
+    bridge.set_update_state("正在检查更新…", "检查更新", false);
     thread::spawn(move || {
         let endpoint = lock(&backend.config).update.endpoint.clone();
         let result = updater::check(&endpoint);
