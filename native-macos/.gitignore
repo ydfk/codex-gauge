@@ -6,3 +6,4 @@ Config/Local.xcconfig
 *.xcuserstate
 xcuserdata/
 dist/
+证书记录.txt
