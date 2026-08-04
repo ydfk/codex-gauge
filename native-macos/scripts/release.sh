@@ -14,6 +14,7 @@ RELEASE_VERSION="${RELEASE_VERSION:-}"
 RELEASE_BUILD_NUMBER="${RELEASE_BUILD_NUMBER:-}"
 RELEASE_TAG="${RELEASE_TAG:-}"
 DOWNLOAD_URL_PREFIX="${DOWNLOAD_URL_PREFIX:-}"
+RELEASE_COMPLETED=0
 export DEVELOPER_DIR
 
 require_value() {
@@ -27,6 +28,10 @@ require_value() {
 }
 
 cleanup() {
+  local exit_status=$?
+
+  set +e
+
   if [[ -n "${DMG_STAGING_DIR:-}" && -d "$DMG_STAGING_DIR" ]]; then
     rm -rf "$DMG_STAGING_DIR"
   fi
@@ -34,6 +39,12 @@ cleanup() {
   if [[ -n "${EXPORT_WORK_DIR:-}" && -d "$EXPORT_WORK_DIR" ]]; then
     rm -rf "$EXPORT_WORK_DIR"
   fi
+
+  if [[ "$RELEASE_COMPLETED" != "1" && "$exit_status" -eq 0 ]]; then
+    exit_status=1
+  fi
+
+  exit "$exit_status"
 }
 
 verify_distribution_signature() {
@@ -209,7 +220,7 @@ if ! NOTARY_SUBMISSION_ID="$(plutil -extract id raw -o - "$NOTARY_SUBMISSION_PAT
   exit 1
 fi
 
-echo "Apple 公证提交：$NOTARY_SUBMISSION_ID（$NOTARY_STATUS）"
+echo "Apple 公证提交：${NOTARY_SUBMISSION_ID}（${NOTARY_STATUS}）"
 
 if [[ "$NOTARY_STATUS" != "Accepted" ]]; then
   echo "Apple 公证未通过，正在获取详细日志。" >&2
@@ -261,3 +272,5 @@ echo "发布版本：$VERSION ($BUILD_NUMBER)"
 echo "发布架构：arm64"
 echo "发布产物：$DMG_PATH"
 echo "更新清单：$OUTPUT_DIR/appcast.xml"
+
+RELEASE_COMPLETED=1
