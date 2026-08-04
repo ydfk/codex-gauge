@@ -5,3 +5,4 @@ build/
 Config/Local.xcconfig
 *.xcuserstate
 xcuserdata/
+dist/

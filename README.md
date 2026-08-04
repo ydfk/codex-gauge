@@ -11,7 +11,7 @@ Codex Gauge 是一个轻量的本机 Codex 用量监控工具。仓库只包含 
 | 平台 | 技术 | 形态 | 状态 |
 | --- | --- | --- | --- |
 | Windows 10/11 x64 | Rust、Slint、windows-rs | 顶部状态条、统一详情/设置面板、系统托盘 | 可开发与发布 |
-| macOS 15+ | Swift、SwiftUI、AppKit | 菜单栏状态项与弹出面板 | 可开发；发布需 Apple 签名环境 |
+| macOS 15+（Apple Silicon） | Swift、SwiftUI、AppKit | 菜单栏状态项与弹出面板 | 可开发与发布 |
 
 两个客户端分别维护代码、配置和更新机制，但遵循相同的数据与安全边界：优先读取本机 `codex app-server`，不可用时才在后端内存中使用 Codex OAuth 登录状态查询用量；认证字段不会进入 UI、配置、快照或日志。
 
@@ -50,7 +50,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 
 ## 自动更新
 
-`v*.*.*` 标签当前构建 Windows x64。未配置签名时仍发布便携 EXE；配置 Minisign 后会额外生成 `latest.json` 和签名资产。发布流程按平台 artifact 汇总设计，后续可以把 macOS 的 Sparkle zip 与 `appcast.xml` 加入同一个版本 Release。完整配置见 [发布说明](docs/RELEASE.md)。
+`v*.*.*` 标签会构建 Windows x64 与 macOS ARM64。Windows 未配置 Minisign 时仍发布便携 EXE；macOS 必须完整配置 Developer ID Application、Apple 公证和 Sparkle 密钥，工作流才会发布已签名、公证的 DMG 与 `appcast.xml`。完整配置见 [发布说明](docs/RELEASE.md)和 [macOS GitHub Actions 配置指南](native-macos/docs/GITHUB_ACTIONS_RELEASE.md)。
 
 ## 安全
 
@@ -68,7 +68,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 codex-gauge/
 ├─ native-windows/          # Rust + Slint + windows-rs
 ├─ native-macos/            # SwiftUI + AppKit + Sparkle
-├─ .github/workflows/       # 原生 Windows x64 发布
+├─ .github/workflows/       # Windows x64 与 macOS ARM64 发布
 ├─ docs/                    # 设计、安全与发布说明
 ├─ README.md
 ├─ RELEASE.md

@@ -5,14 +5,47 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-DERIVED_DATA="$PROJECT_DIR/DerivedData"
-ARCHIVE_PATH="$PROJECT_DIR/build/CodexGaugeNative.xcarchive"
-OUTPUT_DIR="$PROJECT_DIR/build/update"
+DERIVED_DATA="${DERIVED_DATA:-$PROJECT_DIR/DerivedData}"
+ARCHIVE_PATH="${ARCHIVE_PATH:-$PROJECT_DIR/build/CodexGaugeNative.xcarchive}"
+OUTPUT_DIR="${OUTPUT_DIR:-$PROJECT_DIR/build/update}"
 APPCAST_TOOL="$DERIVED_DATA/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast"
+SIGNING_IDENTITY="${MACOS_SIGNING_IDENTITY:-Developer ID Application}"
+RELEASE_VERSION="${RELEASE_VERSION:-}"
+RELEASE_BUILD_NUMBER="${RELEASE_BUILD_NUMBER:-}"
+RELEASE_TAG="${RELEASE_TAG:-}"
+DOWNLOAD_URL_PREFIX="${DOWNLOAD_URL_PREFIX:-}"
 export DEVELOPER_DIR
 
+require_value() {
+  local name="$1"
+  local value="${!name:-}"
+
+  if [[ -z "$value" ]]; then
+    echo "缺少必需的环境变量：$name" >&2
+    exit 1
+  fi
+}
+
+cleanup() {
+  if [[ -n "${DMG_STAGING_DIR:-}" && -d "$DMG_STAGING_DIR" ]]; then
+    rm -rf "$DMG_STAGING_DIR"
+  fi
+}
+
+trap cleanup EXIT
+
+require_value APPLE_TEAM_ID
+require_value APPLE_NOTARY_API_KEY_PATH
+require_value APPLE_NOTARY_KEY_ID
+require_value APPLE_NOTARY_ISSUER_ID
+
 if [[ ! -f "$PROJECT_DIR/Config/Local.xcconfig" ]]; then
-  echo "Missing Config/Local.xcconfig. Configure the Sparkle public key first." >&2
+  echo "缺少 Config/Local.xcconfig，请先配置 Sparkle 公钥。" >&2
+  exit 1
+fi
+
+if [[ ! -f "$APPLE_NOTARY_API_KEY_PATH" ]]; then
+  echo "找不到 Apple 公证 API Key：$APPLE_NOTARY_API_KEY_PATH" >&2
   exit 1
 fi
 
@@ -26,19 +59,122 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
+BUILD_SETTINGS=(
+  "ARCHS=arm64"
+  "ONLY_ACTIVE_ARCH=NO"
+  "CODE_SIGN_STYLE=Manual"
+  "CODE_SIGN_IDENTITY=$SIGNING_IDENTITY"
+  "DEVELOPMENT_TEAM=$APPLE_TEAM_ID"
+)
+
+if [[ -n "$RELEASE_VERSION" ]]; then
+  BUILD_SETTINGS+=("MARKETING_VERSION=$RELEASE_VERSION")
+fi
+
+if [[ -n "$RELEASE_BUILD_NUMBER" ]]; then
+  BUILD_SETTINGS+=("CURRENT_PROJECT_VERSION=$RELEASE_BUILD_NUMBER")
+fi
+
 xcodebuild \
   -project "$PROJECT_DIR/CodexGaugeNative.xcodeproj" \
   -scheme CodexGaugeNative \
   -configuration Release \
+  -destination "generic/platform=macOS" \
   -derivedDataPath "$DERIVED_DATA" \
   -archivePath "$ARCHIVE_PATH" \
-  archive
+  archive \
+  "${BUILD_SETTINGS[@]}"
 
 APP_PATH="$ARCHIVE_PATH/Products/Applications/Codex Gauge.app"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
-ZIP_PATH="$OUTPUT_DIR/Codex-Gauge-Native-$VERSION-macOS.zip"
+BUILD_NUMBER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist")"
+SPARKLE_PUBLIC_KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP_PATH/Contents/Info.plist")"
+DMG_PATH="$OUTPUT_DIR/Codex-Gauge-Native-$VERSION-macOS-arm64.dmg"
 
-ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
-"$APPCAST_TOOL" "$OUTPUT_DIR"
+if [[ -n "$RELEASE_TAG" && "$RELEASE_TAG" != "v$VERSION" ]]; then
+  echo "发布标签 $RELEASE_TAG 与应用版本 v$VERSION 不一致。" >&2
+  exit 1
+fi
 
-echo "Release artifacts: $OUTPUT_DIR"
+if ! lipo -archs "$APP_PATH/Contents/MacOS/CodexGaugeNative" | grep -qx "arm64"; then
+  echo "发布构建不是仅包含 arm64 的应用。" >&2
+  exit 1
+fi
+
+if ! PUBLIC_KEY_BYTES="$(printf '%s' "$SPARKLE_PUBLIC_KEY" | base64 -D 2>/dev/null | wc -c | tr -d ' ')"; then
+  PUBLIC_KEY_BYTES=0
+fi
+if [[ "$PUBLIC_KEY_BYTES" != "32" ]]; then
+  echo "应用中的 SUPublicEDKey 不是有效的 Sparkle Ed25519 公钥。" >&2
+  exit 1
+fi
+
+codesign --deep --strict --verify --verbose=2 "$APP_PATH"
+SIGNATURE_DETAILS="$(codesign --display --verbose=4 "$APP_PATH" 2>&1)"
+SIGNED_TEAM="$(printf '%s\n' "$SIGNATURE_DETAILS" | awk -F= '/^TeamIdentifier=/{print $2; exit}')"
+
+if [[ "$SIGNED_TEAM" != "$APPLE_TEAM_ID" ]]; then
+  echo "应用签名团队 $SIGNED_TEAM 与 APPLE_TEAM_ID 不一致。" >&2
+  exit 1
+fi
+
+if ! printf '%s\n' "$SIGNATURE_DETAILS" | grep -Eq '^CodeDirectory .*flags=.*runtime'; then
+  echo "应用签名未启用 Hardened Runtime。" >&2
+  exit 1
+fi
+
+DMG_STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/codex-gauge-dmg.XXXXXX")"
+ditto "$APP_PATH" "$DMG_STAGING_DIR/Codex Gauge.app"
+ln -s /Applications "$DMG_STAGING_DIR/Applications"
+
+hdiutil create \
+  -volname "Codex Gauge" \
+  -srcfolder "$DMG_STAGING_DIR" \
+  -fs APFS \
+  -format ULFO \
+  -ov \
+  "$DMG_PATH"
+
+codesign --force --sign "$SIGNING_IDENTITY" --timestamp "$DMG_PATH"
+codesign --verify --verbose=2 "$DMG_PATH"
+
+xcrun notarytool submit "$DMG_PATH" \
+  --key "$APPLE_NOTARY_API_KEY_PATH" \
+  --key-id "$APPLE_NOTARY_KEY_ID" \
+  --issuer "$APPLE_NOTARY_ISSUER_ID" \
+  --wait \
+  --timeout 60m
+
+xcrun stapler staple "$DMG_PATH"
+xcrun stapler validate "$DMG_PATH"
+spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG_PATH"
+
+APPCAST_ARGUMENTS=(
+  --maximum-versions 1
+)
+
+if [[ -n "$DOWNLOAD_URL_PREFIX" ]]; then
+  APPCAST_ARGUMENTS+=(--download-url-prefix "$DOWNLOAD_URL_PREFIX")
+fi
+
+if [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+  printf '%s' "$SPARKLE_PRIVATE_KEY" |
+    "$APPCAST_TOOL" --ed-key-file - "${APPCAST_ARGUMENTS[@]}" "$OUTPUT_DIR"
+else
+  "$APPCAST_TOOL" "${APPCAST_ARGUMENTS[@]}" "$OUTPUT_DIR"
+fi
+
+if [[ ! -f "$OUTPUT_DIR/appcast.xml" ]]; then
+  echo "Sparkle appcast.xml 未生成。" >&2
+  exit 1
+fi
+
+if ! grep -q 'sparkle:edSignature=' "$OUTPUT_DIR/appcast.xml"; then
+  echo "Sparkle appcast.xml 不包含更新包签名。" >&2
+  exit 1
+fi
+
+echo "发布版本：$VERSION ($BUILD_NUMBER)"
+echo "发布架构：arm64"
+echo "发布产物：$DMG_PATH"
+echo "更新清单：$OUTPUT_DIR/appcast.xml"

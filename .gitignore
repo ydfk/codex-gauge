@@ -9,3 +9,5 @@ plan.md
 .vscode/
 .idea/
 .history/
+node_modules
+dist/

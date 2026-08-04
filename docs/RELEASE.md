@@ -60,19 +60,31 @@ gh variable set NATIVE_WINDOWS_UPDATER_PUBKEY --body $publicKey
 
 GitHub 最新正式 Release 保存更新清单。客户端通过 `releases/latest/download/latest.json` 检查更新，并只安装签名验证通过的 `windows-x86_64` 资产。
 
-构建 job 与 Release job 已分离。后续增加 macOS 自动发布时，只需新增 macOS 构建 job、上传独立 artifact，并让统一 Release job 同时依赖该 job；Windows 与 macOS 产物可以进入同一个版本 Release。
+构建 job 与 Release job 已分离。Windows 与 macOS 分别上传独立 artifact，再由统一 Release job 发布到同一个版本。
 
 ## macOS
 
-macOS 使用 Sparkle appcast。首次发布前需要：
+macOS job 仅构建 Apple Silicon `arm64`，生成带 Applications 快捷方式的 DMG。工作流使用 Developer ID Application 签名、Apple `notarytool` 公证并装订 DMG，再用 Sparkle Ed25519 私钥生成 `appcast.xml`。
 
-1. 在 `native-macos` 中解析 Sparkle 依赖。
-2. 使用 Sparkle `generate_keys` 生成 Ed25519 密钥。
-3. 从 `Config/Local.xcconfig.example` 创建未提交的 `Config/Local.xcconfig` 并写入公钥。
-4. 配置 Developer ID Application 签名与 Apple 公证凭据。
-5. 执行 `native-macos/scripts/release.sh`。
+macOS 发布要求以下 GitHub Actions 配置：
 
-脚本生成签名 zip 与 `appcast.xml`，产物位于 `native-macos/build/update/`。详细步骤见 [macOS 发布说明](../native-macos/docs/RELEASE.md)。
+| 类型 | 名称 |
+| --- | --- |
+| Secret | `MACOS_CERTIFICATE_P12_BASE64` |
+| Secret | `MACOS_CERTIFICATE_PASSWORD` |
+| Secret | `APPLE_NOTARY_API_KEY_P8` |
+| Secret | `SPARKLE_PRIVATE_KEY` |
+| Variable | `APPLE_TEAM_ID` |
+| Variable | `APPLE_NOTARY_KEY_ID` |
+| Variable | `APPLE_NOTARY_ISSUER_ID` |
+| Variable | `SPARKLE_PUBLIC_ED_KEY` |
+
+工作流生成：
+
+- `Codex-Gauge-Native-<version>-macOS-arm64.dmg`
+- `appcast.xml`
+
+第一次注册 Apple Developer Program 后的证书、公证、Sparkle 与 GitHub 配置步骤见 [macOS GitHub Actions 发布配置指南](../native-macos/docs/GITHUB_ACTIONS_RELEASE.md)。实现与验收边界见 [macOS 发布说明](../native-macos/docs/RELEASE.md)。
 
 ## 发布验收
 

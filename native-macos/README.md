@@ -61,11 +61,11 @@ macOS 客户端使用独立的 Sparkle `appcast.xml`，不与 Windows 的更新�
 2. 执行 `DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys`。
 3. 复制 `Config/Local.xcconfig.example` 为 `Config/Local.xcconfig`，写入生成的公钥。
 4. 私钥保留在 macOS 钥匙串或 CI Secret，不提交到仓库。
-5. 使用 Developer ID 对 `.app` 签名并公证。
-6. 运行 `./scripts/release.sh`，生成更新压缩包和 `appcast.xml`。
-7. 将 zip 和 `appcast.xml` 上传到 GitHub Release。
+5. 配置 Developer ID Application 证书和 Apple 公证 Team API Key。
+6. 推送 `v*.*.*` 标签，由 GitHub Actions 构建、签名并公证 ARM64 DMG。
+7. 工作流将 DMG 和 `appcast.xml` 上传到 GitHub Release。
 
-完整发布边界见 [docs/RELEASE.md](docs/RELEASE.md)。
+完整发布边界见 [docs/RELEASE.md](docs/RELEASE.md)。第一次配置 Apple Developer Program 和 GitHub 时，请按[GitHub Actions macOS 发布配置指南](docs/GITHUB_ACTIONS_RELEASE.md)逐步操作。
 
 ## 数据与隐私
 
