@@ -2,6 +2,8 @@
 .env.*
 *.log
 *.tmp
+notarization-log.json
+notarytool-submit.json
 
 .DS_Store
 Thumbs.db

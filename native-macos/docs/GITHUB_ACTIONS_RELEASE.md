@@ -206,20 +206,35 @@ gh variable set SPARKLE_PUBLIC_ED_KEY \
 
 ### 4.3 导出私钥到 GitHub Secret
 
-先创建一个只用于本次操作的临时文件：
+先创建一个只用于本次操作的临时目录，再让 Sparkle 在其中创建私钥文件。`generate_keys -x` 要求目标文件尚不存在，因此不能直接把 `mktemp` 创建的文件作为导出目标。
 
 ```bash
-SPARKLE_KEY_FILE="$(mktemp -t codex-gauge-sparkle-key)"
+(
+  set -e
 
-native-macos/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys \
-  --account com.ydfk.codex-gauge.native \
-  -x "$SPARKLE_KEY_FILE"
+  SPARKLE_KEY_DIR="$(mktemp -d -t codex-gauge-sparkle-key)"
+  SPARKLE_KEY_FILE="$SPARKLE_KEY_DIR/private-key"
+  trap 'rm -f "$SPARKLE_KEY_FILE"; rmdir "$SPARKLE_KEY_DIR"' EXIT
 
-gh secret set SPARKLE_PRIVATE_KEY \
-  --repo ydfk/codex-gauge \
-  < "$SPARKLE_KEY_FILE"
+  native-macos/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys \
+    --account com.ydfk.codex-gauge.native \
+    -x "$SPARKLE_KEY_FILE"
 
-rm -f "$SPARKLE_KEY_FILE"
+  if [[ ! -s "$SPARKLE_KEY_FILE" ]]; then
+    echo "Sparkle 私钥导出失败，未更新 GitHub Secret。" >&2
+    exit 1
+  fi
+
+  gh secret set SPARKLE_PRIVATE_KEY \
+    --repo ydfk/codex-gauge \
+    < "$SPARKLE_KEY_FILE"
+)
+```
+
+命令成功时会重新覆盖同名 GitHub Secret。可以检查更新时间，但 GitHub 不会回显 Secret 内容：
+
+```bash
+gh secret list --repo ydfk/codex-gauge | grep SPARKLE_PRIVATE_KEY
 ```
 
 第一次公开发布后不要随意重新生成 Sparkle 密钥。已经安装的客户端内置旧公钥，无法验证新私钥签署的更新。应把钥匙串中的 Sparkle 私钥额外备份到安全的离线位置。
@@ -278,9 +293,9 @@ git push origin v0.2.0
 1. 校验标签并解析版本。
 2. 构建 Windows x64。
 3. 在 macOS runner 中创建临时钥匙串并导入 Developer ID Application 证书。
-4. 仅构建 `arm64` 的 Release `.app`。
-5. 验证 App 签名并制作 APFS/LZFSE 压缩 DMG。
-6. 签名 DMG，使用 `notarytool` 最多等待 60 分钟完成 Apple 公证并装订票据。
+4. 仅归档 `arm64` 的 Release App，再使用 Developer ID 方式导出可分发 App。
+5. 逐项验证 App 与 Sparkle 嵌套组件的 Developer ID、安全时间戳和 Hardened Runtime，然后制作 APFS/LZFSE 压缩 DMG。
+6. 签名 DMG，使用 `notarytool` 最多等待 60 分钟完成 Apple 公证；公证通过后才装订票据。
 7. 使用 Sparkle 私钥签署 DMG 并生成 `appcast.xml`；缺少有效更新签名时终止发布。
 8. 汇总 Windows 与 macOS 产物并创建 GitHub Release。
 
@@ -364,6 +379,19 @@ xcrun notarytool info REPLACE_WITH_SUBMISSION_ID \
   --key-id REPLACE_WITH_KEY_ID \
   --issuer REPLACE_WITH_ISSUER_ID
 ```
+
+### `notarytool` 返回 `Invalid`
+
+工作流会在 `macos-arm64-notarization` artifact 中保留：
+
+```text
+notarytool-submit.json
+notarization-log.json
+```
+
+`notarytool-submit.json` 记录 submission ID 和最终状态。只有 Apple 返回非 `Accepted` 状态时才会生成 `notarization-log.json`，其 `issues` 数组会指出失败文件和原因。这两个文件不包含 `.p8`、证书密码或 Sparkle 私钥。
+
+公证失败后不会得到可装订票据，因此脚本会在执行 `stapler` 前终止。`Record not found` 或 Error 65 通常只是在无票据时继续执行 `stapler` 的后续现象，应以公证日志中的 `issues` 为准。
 
 ### App 中“检查更新”不可用
 
