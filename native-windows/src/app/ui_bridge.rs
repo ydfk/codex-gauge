@@ -43,8 +43,7 @@ impl UiBridge {
             top.set_pinned(config.top_always_on_top);
             top.set_locked(config.top_lock_position);
             top.set_panel_opacity(config.opacity);
-            let width = top_width(display_mode, top.get_data().five_visible);
-            style_later(top.as_weak(), config.top_always_on_top, width, TOP_HEIGHT);
+            style_top_later(top.as_weak());
         }
         if let Some(panel) = self.panel.upgrade() {
             panel.set_start_on_boot(config.start_on_boot);
@@ -90,7 +89,7 @@ impl UiBridge {
             let width = top_width(top.get_display_mode().as_str(), top.get_data().five_visible);
             set_logical_size(top.window(), width, TOP_HEIGHT);
             let _ = top.show();
-            style_later(top.as_weak(), top.get_pinned(), width, TOP_HEIGHT);
+            style_top_later(top.as_weak());
         }
         self.sync_visibility();
     }
@@ -185,18 +184,26 @@ pub(super) fn top_width(display_mode: &str, five_visible: bool) -> f32 {
 fn top_metric_visibility(display_mode: &str, five_visible: bool) -> (bool, bool) {
     match display_mode {
         "icon-only" => (false, false),
-        "five-and-seven" if five_visible => (true, true),
-        "five-hour" if five_visible => (true, false),
-        _ => (false, true),
+        _ => (five_visible, true),
     }
 }
 
 pub(super) fn display_mode(mode: TopBarDisplay) -> &'static str {
     match mode {
-        TopBarDisplay::FiveAndSeven => "five-and-seven",
-        TopBarDisplay::FiveHour => "five-hour",
+        TopBarDisplay::FiveAndSeven | TopBarDisplay::FiveHour => "five-and-seven",
         TopBarDisplay::IconOnly => "icon-only",
     }
+}
+
+fn style_top_later(weak: slint::Weak<TopWidget>) {
+    Timer::single_shot(Duration::from_millis(80), move || {
+        if let Some(top) = weak.upgrade() {
+            // 延迟期间额度或显示模式可能改变，不能用旧宽度覆盖最新布局。
+            let width = top_width(top.get_display_mode().as_str(), top.get_data().five_visible);
+            set_logical_size(top.window(), width, TOP_HEIGHT);
+            let _ = windows::apply_native_style(top.window(), top.get_pinned());
+        }
+    });
 }
 
 pub(super) fn style_later<T>(weak: slint::Weak<T>, topmost: bool, width: f32, height: f32)
@@ -222,7 +229,7 @@ mod tests {
     #[test]
     fn top_width_matches_display_mode() {
         assert_eq!(top_width("icon-only", true), 34.0);
-        assert_eq!(top_width("five-hour", true), 92.0);
+        assert_eq!(top_width("five-hour", true), 158.0);
         assert_eq!(top_width("five-and-seven", true), 158.0);
     }
 
@@ -234,5 +241,21 @@ mod tests {
             (false, true)
         );
         assert_eq!(top_width("five-and-seven", false), 92.0);
+    }
+
+    #[test]
+    fn both_windows_remain_visible_in_legacy_and_default_modes() {
+        for mode in ["five-hour", "five-and-seven"] {
+            assert_eq!(top_metric_visibility(mode, true), (true, true));
+            let widths: Vec<_> = [true, false, true]
+                .into_iter()
+                .map(|visible| top_width(mode, visible))
+                .collect();
+            assert_eq!(widths, vec![158.0, 92.0, 158.0]);
+        }
+        for visible in [true, false] {
+            assert_eq!(top_metric_visibility("icon-only", visible), (false, false));
+            assert_eq!(top_width("icon-only", visible), 34.0);
+        }
     }
 }

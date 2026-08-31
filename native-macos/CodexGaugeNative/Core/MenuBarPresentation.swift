@@ -8,14 +8,10 @@ public enum MenuBarPresentation {
         guard mode != .iconOnly else { return "" }
 
         if snapshot?.primaryWindowUnlimited == true {
-            guard let weeklyRemaining = snapshot?.secondaryWindow?.remainingPercent else {
-                return "无限"
-            }
-            return "7d \(percent(weeklyRemaining))"
+            return "7d \(percent(snapshot?.secondaryWindow?.remainingPercent))"
         }
 
         let fiveHour = "5h \(percent(snapshot?.primaryWindow?.remainingPercent))"
-        guard mode == .fiveAndSeven else { return fiveHour }
         let weekly = "7d \(percent(snapshot?.secondaryWindow?.remainingPercent))"
         return "\(fiveHour) · \(weekly)"
     }

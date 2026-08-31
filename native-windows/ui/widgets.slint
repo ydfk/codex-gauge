@@ -42,13 +42,12 @@ component TopMetric inherits Rectangle {
 
 export component TopWidget inherits Window {
     in property <GaugeData> data;
-    in property <string> display-mode: "five-hour";
+    in property <string> display-mode: "five-and-seven";
     in property <float> panel-opacity: 0.96;
     in property <bool> pinned: true;
     in property <bool> locked: false;
     property <bool> show-five: root.display-mode != "icon-only" && root.data.five-visible;
-    property <bool> show-seven: root.display-mode == "five-and-seven"
-        || (root.display-mode != "icon-only" && !root.data.five-visible);
+    property <bool> show-seven: root.display-mode != "icon-only";
     property <length> press-x: 0px;
     property <bool> left-pressed: false;
     property <bool> dragging: false;

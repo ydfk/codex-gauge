@@ -58,7 +58,7 @@ impl Default for AppConfig {
             version: 3,
             start_on_boot: false,
             show_top_on_startup: true,
-            top_bar_display: TopBarDisplay::FiveHour,
+            top_bar_display: TopBarDisplay::FiveAndSeven,
             top_always_on_top: true,
             top_lock_position: false,
             oled_shift_enabled: false,
@@ -81,6 +81,9 @@ impl Default for AppConfig {
 impl AppConfig {
     pub fn normalize(&mut self) {
         self.version = 3;
+        if self.top_bar_display == TopBarDisplay::FiveHour {
+            self.top_bar_display = TopBarDisplay::FiveAndSeven;
+        }
         self.refresh_interval_seconds = self.refresh_interval_seconds.clamp(30, 3600);
         self.opacity = self.opacity.clamp(0.68, 1.0);
         if self.codex_command.trim().is_empty() {
@@ -123,7 +126,23 @@ mod tests {
         config.normalize();
 
         assert_eq!(config.version, 3);
-        assert_eq!(config.top_bar_display, TopBarDisplay::FiveHour);
+        assert_eq!(config.top_bar_display, TopBarDisplay::FiveAndSeven);
+    }
+
+    #[test]
+    fn migrates_single_window_mode_without_changing_position() {
+        let mut config: AppConfig = serde_json::from_str(
+            r#"{"topBarDisplay":"five-hour","windows":{"topX":240},"topLockPosition":true}"#,
+        )
+        .unwrap();
+        config.normalize();
+        assert_eq!(config.top_bar_display, TopBarDisplay::FiveAndSeven);
+        assert_eq!(config.windows.top_x, Some(240));
+        assert!(config.top_lock_position);
+
+        config.top_bar_display = TopBarDisplay::IconOnly;
+        config.normalize();
+        assert_eq!(config.top_bar_display, TopBarDisplay::IconOnly);
     }
 
     #[test]

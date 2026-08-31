@@ -10,7 +10,6 @@ struct SettingsPanel: View {
                     settingRow("显示内容") {
                         Picker("", selection: model.binding(for: \.menuBarDisplay)) {
                             Text("图标 + 5h + 7d").tag(MenuBarDisplay.fiveAndSeven)
-                            Text("图标 + 5h").tag(MenuBarDisplay.fiveHour)
                             Text("仅图标").tag(MenuBarDisplay.iconOnly)
                         }
                         .labelsHidden()

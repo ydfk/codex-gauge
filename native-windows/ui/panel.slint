@@ -229,7 +229,7 @@ export component PanelWindow inherits Window {
     in-out property <bool> top-locked;
     in-out property <bool> oled-shift;
     in-out property <float> panel-opacity;
-    in-out property <string> display-mode: "five-hour";
+    in-out property <string> display-mode: "five-and-seven";
     in-out property <string> refresh-seconds: "60";
     in-out property <string> codex-command: "codex";
     in-out property <string> provider: "app-server";
@@ -497,17 +497,12 @@ export component PanelWindow inherits Window {
                     x: 12px; y: 31px; width: parent.width - 24px; height: 32px;
                     border-radius: 9px; border-width: 1px; border-color: #ffffff18; background: #090d1226;
                     SegmentButton {
-                        x: 2px; y: 2px; width: (parent.width - 4px) / 3; label: "图标 + 5h + 7d";
+                        x: 2px; y: 2px; width: (parent.width - 4px) / 2; label: "图标 + 5h + 7d";
                         selected: root.display-mode == "five-and-seven";
                         clicked => { root.display-mode = "five-and-seven"; root.settings-changed(); }
                     }
                     SegmentButton {
-                        x: 2px + (parent.width - 4px) / 3; y: 2px; width: (parent.width - 4px) / 3; label: "图标 + 5h";
-                        selected: root.display-mode == "five-hour";
-                        clicked => { root.display-mode = "five-hour"; root.settings-changed(); }
-                    }
-                    SegmentButton {
-                        x: 2px + (parent.width - 4px) * 2 / 3; y: 2px; width: (parent.width - 4px) / 3; label: "仅图标";
+                        x: 2px + (parent.width - 4px) / 2; y: 2px; width: (parent.width - 4px) / 2; label: "仅图标";
                         selected: root.display-mode == "icon-only";
                         clicked => { root.display-mode = "icon-only"; root.settings-changed(); }
                     }

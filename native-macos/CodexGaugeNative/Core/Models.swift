@@ -177,6 +177,16 @@ public enum MenuBarDisplay: String, Codable, CaseIterable, Sendable {
     case fiveAndSeven
     case fiveHour
     case iconOnly
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        guard let mode = Self(rawValue: value) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid menu bar mode")
+        }
+        // 兼容旧版只显示 5h 的配置，同时保留其他个人设置。
+        self = mode == .fiveHour ? .fiveAndSeven : mode
+    }
 }
 
 public struct AppConfig: Codable, Equatable, Sendable {
@@ -192,7 +202,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
         startOnBoot: Bool = false,
         command: String = "codex",
         preferredProvider: PreferredProvider = .appServer,
-        menuBarDisplay: MenuBarDisplay = .fiveHour,
+        menuBarDisplay: MenuBarDisplay = .fiveAndSeven,
         automaticallyChecksForUpdates: Bool = true
     ) {
         self.refreshIntervalSeconds = refreshIntervalSeconds

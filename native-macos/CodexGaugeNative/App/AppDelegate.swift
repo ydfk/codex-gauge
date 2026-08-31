@@ -65,44 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func statusTitle() -> NSAttributedString {
-        let result = NSMutableAttributedString()
-        for segment in statusSegments() {
-            result.append(
-                NSAttributedString(
-                    string: segment.text,
-                    attributes: titleAttributes(color: segment.color)
-                )
-            )
-        }
-        return result
-    }
-
-    private func statusSegments() -> [StatusTitleSegment] {
-        guard model.config.menuBarDisplay != .iconOnly else { return [] }
-        let snapshot = model.snapshot
-
-        if snapshot?.primaryWindowUnlimited == true {
-            guard let weekly = snapshot?.secondaryWindow?.remainingPercent else {
-                return [StatusTitleSegment(text: " 无限", color: .labelColor)]
-            }
-            return usageSegments(prefix: " 7d ", remaining: weekly)
-        }
-
-        var segments = usageSegments(prefix: " 5h ", remaining: snapshot?.primaryWindow?.remainingPercent)
-        if model.config.menuBarDisplay == .fiveAndSeven {
-            segments.append(StatusTitleSegment(text: " · 7d ", color: .labelColor))
-            segments.append(contentsOf: percentageSegments(snapshot?.secondaryWindow?.remainingPercent))
-        }
-        return segments
-    }
-
-    private func usageSegments(prefix: String, remaining: Double?) -> [StatusTitleSegment] {
-        [StatusTitleSegment(text: prefix, color: .labelColor)] + percentageSegments(remaining)
-    }
-
-    private func percentageSegments(_ remaining: Double?) -> [StatusTitleSegment] {
-        let text = remaining.map { "\(Int($0.rounded()))%" } ?? "--"
-        return [StatusTitleSegment(text: text, color: .labelColor)]
+        let title = model.menuBarTitle
+        return NSAttributedString(
+            string: title.isEmpty ? "" : " \(title)",
+            attributes: titleAttributes(color: .labelColor)
+        )
     }
 
     private func titleAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
@@ -153,9 +120,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         frame.origin.y = visibleFrame.maxY - frame.height
         window.setFrame(frame, display: true)
     }
-}
-
-private struct StatusTitleSegment {
-    let text: String
-    let color: NSColor
 }

@@ -59,15 +59,15 @@ func fallsBackToWeeklyMenuBarTitle() throws {
     #expect(MenuBarPresentation.title(snapshot: snapshot, mode: .fiveAndSeven) == "7d 58%")
 }
 
-@Test("5h 与 7d 都没有可显示额度时菜单栏显示无限")
-func showsUnlimitedWhenWeeklyIsAlsoUnavailable() {
+@Test("5h 无限但 7d 缺失时保留周额度占位")
+func showsUnknownWeeklyWhenUnavailable() {
     let snapshot = CodexUsageSnapshot(
         source: .appServer,
         status: .ok,
         primaryWindowUnlimited: true
     )
 
-    #expect(MenuBarPresentation.title(snapshot: snapshot, mode: .fiveHour) == "无限")
+    #expect(MenuBarPresentation.title(snapshot: snapshot, mode: .fiveHour) == "7d --")
 }
 
 @Test("可用重置次数优先使用接口汇总")

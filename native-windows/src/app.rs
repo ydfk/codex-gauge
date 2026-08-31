@@ -227,9 +227,8 @@ fn save_settings(window: &PanelWindow, bridge: &UiBridge, backend: &Backend) {
     config.start_on_boot = window.get_start_on_boot();
     config.show_top_on_startup = window.get_show_top();
     config.top_bar_display = match window.get_display_mode().as_str() {
-        "five-and-seven" => TopBarDisplay::FiveAndSeven,
         "icon-only" => TopBarDisplay::IconOnly,
-        _ => TopBarDisplay::FiveHour,
+        _ => TopBarDisplay::FiveAndSeven,
     };
     config.top_always_on_top = window.get_top_pinned();
     config.top_lock_position = window.get_top_locked();
