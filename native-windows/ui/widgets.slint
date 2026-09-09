@@ -9,22 +9,22 @@ component TopMetric inherits Rectangle {
 
     Text {
         x: 0px;
-        y: 2px;
+        y: 0px;
         width: 19px;
-        height: 17px;
+        height: parent.height;
         text: root.label;
         color: #8f9ba7;
         font-family: "Segoe UI Variable Text";
         font-size: 10px;
         font-weight: 600;
-        vertical-alignment: bottom;
+        vertical-alignment: center;
     }
 
     Text {
         x: 20px;
-        y: 2px;
+        y: 0px;
         width: parent.width - 20px;
-        height: 17px;
+        height: parent.height;
         text: root.value == "未知" ? "--" : root.value;
         color: root.value == "未知" ? #7f8a95
             : root.remaining >= 70 ? #79e5cf
@@ -33,9 +33,9 @@ component TopMetric inherits Rectangle {
             : root.remaining >= 5 ? #ff9a72
             : #ff6f82;
         font-family: "Segoe UI Variable Text";
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
-        vertical-alignment: bottom;
+        vertical-alignment: center;
         overflow: elide;
     }
 }
