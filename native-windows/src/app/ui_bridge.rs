@@ -175,7 +175,7 @@ impl UiBridge {
 pub(super) fn top_width(display_mode: &str, five_visible: bool) -> f32 {
     let (show_five, show_seven) = top_metric_visibility(display_mode, five_visible);
     match (show_five, show_seven) {
-        (true, true) => 158.0,
+        (true, true) => 154.0,
         (true, false) | (false, true) => 92.0,
         (false, false) => 34.0,
     }
@@ -229,8 +229,8 @@ mod tests {
     #[test]
     fn top_width_matches_display_mode() {
         assert_eq!(top_width("icon-only", true), 34.0);
-        assert_eq!(top_width("five-hour", true), 158.0);
-        assert_eq!(top_width("five-and-seven", true), 158.0);
+        assert_eq!(top_width("five-hour", true), 154.0);
+        assert_eq!(top_width("five-and-seven", true), 154.0);
     }
 
     #[test]
@@ -251,7 +251,7 @@ mod tests {
                 .into_iter()
                 .map(|visible| top_width(mode, visible))
                 .collect();
-            assert_eq!(widths, vec![158.0, 92.0, 158.0]);
+            assert_eq!(widths, vec![154.0, 92.0, 154.0]);
         }
         for visible in [true, false] {
             assert_eq!(top_metric_visibility("icon-only", visible), (false, false));
