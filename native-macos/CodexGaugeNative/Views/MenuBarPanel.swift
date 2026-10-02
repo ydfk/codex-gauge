@@ -151,29 +151,31 @@ private struct UsageOverview: View {
     }
 
     private func creditList(_ credits: [ResetCreditItem]) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("重置券明细 · 共 \(credits.count) 张")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("重置券明细 · 共 \(credits.count) 张")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
 
-            ForEach(Array(credits.prefix(2).enumerated()), id: \.offset) { _, credit in
-                HStack(alignment: .center, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(creditTitle(credit.title))
-                            .font(.caption.weight(.semibold))
-                        Text(credit.expiresAt.map { "到期 \($0)" } ?? "未提供到期时间")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                ForEach(Array(credits.enumerated()), id: \.offset) { _, credit in
+                    HStack(alignment: .center, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(creditTitle(credit.title))
+                                .font(.caption.weight(.semibold))
+                            Text(credit.expiresAt.map { "到期 \($0)" } ?? "未提供到期时间")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(creditStatus(credit.status))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(creditStatusColor(credit.status))
                     }
-                    Spacer()
-                    Text(creditStatus(credit.status))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(creditStatusColor(credit.status))
+                    .padding(.horizontal, 9)
+                    .frame(height: 38)
+                    .gaugeGlass(cornerRadius: 10)
                 }
-                .padding(.horizontal, 9)
-                .frame(height: 38)
-                .gaugeGlass(cornerRadius: 10)
             }
         }
     }

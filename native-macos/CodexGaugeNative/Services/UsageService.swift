@@ -48,7 +48,14 @@ actor UsageService {
             try client.initialize()
             let account = try? client.request("account/read")
             let rateLimits = try client.request("account/rateLimits/read")
-            let credits = await authClient.fetchCredits()
+            let embeddedCredits = rateLimits.unwrappedResult["rateLimitResetCredits"]
+                .flatMap(UsageParser.parseResetCredits)
+            let credits: UsageCredits?
+            if let embeddedCredits {
+                credits = embeddedCredits
+            } else {
+                credits = await authClient.fetchCredits()
+            }
             return UsageParser.parseAppServer(
                 account: account,
                 rateLimits: rateLimits,

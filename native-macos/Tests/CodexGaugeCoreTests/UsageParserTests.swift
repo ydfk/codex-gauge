@@ -130,7 +130,7 @@ func classifiesRemainingStatus() {
     #expect(RemainingStatus(remainingPercent: 71) == .full)
 }
 
-@Test("解析 AuthJson API 的小数百分比与重置券")
+@Test("解析 AuthJson API 的百分比与重置券")
 func parsesWhamUsageAndCredits() throws {
     let value = try decode(
         """
@@ -140,7 +140,7 @@ func parsesWhamUsageAndCredits() throws {
             "limits": [
               {
                 "limit_window_seconds": 18000,
-                "remaining_percent": 0.75,
+                "remaining_percent": 75,
                 "reset_at": 1900000000
               },
               {
